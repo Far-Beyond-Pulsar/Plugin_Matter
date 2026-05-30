@@ -63,8 +63,11 @@ pub struct CanvasViewport {
     // Raw window-space cursor position
     cursor_win: Option<Point<f32>>,
 
-    // Element origin tracked by cursor overlay's paint callback
+    // Element origin and size tracked by cursor overlay's paint callback.
+    // Logical pixel values from GPUI's layout — used to convert mouse events
+    // (also logical) into element-local / canvas-space coordinates.
     element_origin: Rc<RefCell<Point<f32>>>,
+    element_size:   Rc<RefCell<[f32; 2]>>,
 }
 
 impl CanvasViewport {
@@ -85,6 +88,7 @@ impl CanvasViewport {
             active_stroke: None,
             cursor_win:    None,
             element_origin: Rc::new(RefCell::new(Point::default())),
+            element_size:   Rc::new(RefCell::new([0.0, 0.0])),
         }
     }
 
@@ -164,6 +168,7 @@ impl CanvasViewport {
                         stroke.color,
                         tx * TILE_SIZE,
                         ty * TILE_SIZE,
+                        stroke.is_eraser,
                     );
                 }
             }
@@ -251,6 +256,7 @@ impl CanvasViewport {
     fn render_cursor_overlay(&self, cx: &Context<Self>) -> impl IntoElement {
         let cursor_win   = self.cursor_win;
         let origin_rc    = self.element_origin.clone();
+        let size_rc      = self.element_size.clone();
         let brush_radius = {
             let doc = self.document.read();
             (doc.tool_state.brush_size * 0.5 * self.zoom).max(2.0)
@@ -263,7 +269,10 @@ impl CanvasViewport {
             move |bounds, _pre, window, _cx| {
                 let ox = f32::from(bounds.origin.x);
                 let oy = f32::from(bounds.origin.y);
+                let sw = f32::from(bounds.size.width);
+                let sh = f32::from(bounds.size.height);
                 *origin_rc.borrow_mut() = Point::new(ox, oy);
+                *size_rc.borrow_mut()   = [sw, sh];
 
                 let Some(cw) = cursor_win else { return };
                 let wx = cw.x;
@@ -338,10 +347,16 @@ impl Render for CanvasViewport {
                         [local.x, local.y]
                     });
 
+                    // Logical display size from GPUI layout bounds.
+                    // This is the same coordinate space as mouse events and pan
+                    // offsets — critical for correct brush position calculation.
+                    let viewport_size = *self.element_size.borrow();
+
                     let input = CanvasRenderInput {
                         pan_offset:        [self.pan.x, self.pan.y],
                         zoom:              self.zoom,
                         canvas_size:       [canvas_w as f32, canvas_h as f32],
+                        viewport_size,
                         cursor_screen_pos: cursor_local,
                         brush_radius:      doc.tool_state.brush_size * 0.5 * self.zoom,
                         brush_color:       {
@@ -448,12 +463,12 @@ impl Render for CanvasViewport {
                 if this.is_panning {
                     if let Some(start) = this.pan_win_start {
                         this.pan.x = this.pan_offset_at_start.x + (w.x - start.x);
-                        this.pan.y = this.pan_offset_at_start.y - (w.y - start.y);
+                        this.pan.y = this.pan_offset_at_start.y + (w.y - start.y);
                     }
                 } else if this.is_mid_panning {
                     if let Some(start) = this.mid_win_start {
                         this.pan.x = this.mid_offset_at_start.x + (w.x - start.x);
-                        this.pan.y = this.mid_offset_at_start.y - (w.y - start.y);
+                        this.pan.y = this.mid_offset_at_start.y + (w.y - start.y);
                     }
                 } else if this.active_stroke.is_some() {
                     let local      = this.to_local(w);

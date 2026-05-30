@@ -48,19 +48,21 @@ impl MatterEditorPanel {
         let mut subs = Vec::new();
         {
             let doc = doc_arc.clone();
-            subs.push(cx.subscribe(&fg_picker, move |_this, _picker, ev: &ColorPickerEvent, _cx| {
+            subs.push(cx.subscribe(&fg_picker, move |_this, _picker, ev: &ColorPickerEvent, cx| {
                 if let ColorPickerEvent::Change(Some(hsla)) = ev {
                     let rgba: Rgba = (*hsla).into();
                     doc.write().tool_state.foreground_color = rgba;
+                    cx.notify();
                 }
             }));
         }
         {
             let doc = doc_arc.clone();
-            subs.push(cx.subscribe(&bg_picker, move |_this, _picker, ev: &ColorPickerEvent, _cx| {
+            subs.push(cx.subscribe(&bg_picker, move |_this, _picker, ev: &ColorPickerEvent, cx| {
                 if let ColorPickerEvent::Change(Some(hsla)) = ev {
                     let rgba: Rgba = (*hsla).into();
                     doc.write().tool_state.background_color = rgba;
+                    cx.notify();
                 }
             }));
         }

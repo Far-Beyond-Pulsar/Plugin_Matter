@@ -46,7 +46,12 @@ fn dot_dist(screen_pos: vec2<f32>, step: f32, origin: vec2<f32>) -> f32 {
 
 @fragment
 fn fs_main(in: VOut) -> @location(0) vec4<f32> {
-    let sp = in.uv * u.viewport_size;   // screen-space pixel coordinate
+    // uv.y=0 is at the NDC bottom (screen bottom), but pan/mouse coords use
+    // y=0 at the TOP — flip Y so sp matches the same space as pan_offset.
+    let sp = vec2<f32>(
+        in.uv.x * u.viewport_size.x,
+        (1.0 - in.uv.y) * u.viewport_size.y,
+    );
 
     // ── Canvas bounds in screen space ─────────────────────────────────────
     let cx0 = u.pan_offset.x;

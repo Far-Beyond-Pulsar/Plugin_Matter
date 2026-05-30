@@ -86,6 +86,7 @@ impl Stroke {
                         self.color,
                         tile_x * TILE_SIZE,
                         tile_y * TILE_SIZE,
+                        false,  // legacy path — not eraser
                     );
                 }
             }
@@ -101,58 +102,66 @@ impl Stroke {
 
 /// Render a circular brush stamp to a 256×256 RGBA8 tile.
 /// `tile_origin_{x,y}` is the canvas-space top-left of this tile.
+/// Paint a circular brush stamp into a 256×256 RGBA8 tile.
+///
+/// `erase` — when true the stamp *removes* alpha instead of compositing color.
 pub fn render_brush_stamp(
-    tile_data: &mut [u8],
-    center: Point<f32>,
-    size: f32,
-    opacity: f32,
-    color: [u8; 4],
+    tile_data:     &mut [u8],
+    center:        Point<f32>,
+    size:          f32,
+    opacity:       f32,
+    color:         [u8; 4],
     tile_offset_x: u32,
     tile_offset_y: u32,
+    erase:         bool,
 ) {
     const TILE_SIZE: u32 = 256;
-    let radius = size / 2.0;
+    let radius    = size / 2.0;
     let radius_sq = radius * radius;
-    
-    // Calculate bounds within the tile
-    let tile_min_x = (center.x - radius).max(tile_offset_x as f32) as u32;
-    let tile_max_x = (center.x + radius).min((tile_offset_x + TILE_SIZE) as f32) as u32;
-    let tile_min_y = (center.y - radius).max(tile_offset_y as f32) as u32;
-    let tile_max_y = (center.y + radius).min((tile_offset_y + TILE_SIZE) as f32) as u32;
-    
+
+    let tile_min_x = (center.x - radius).floor().max(tile_offset_x as f32) as u32;
+    let tile_max_x = ((center.x + radius).ceil() as u32).min(tile_offset_x + TILE_SIZE);
+    let tile_min_y = (center.y - radius).floor().max(tile_offset_y as f32) as u32;
+    let tile_max_y = ((center.y + radius).ceil() as u32).min(tile_offset_y + TILE_SIZE);
+
     for py in tile_min_y..tile_max_y {
         for px in tile_min_x..tile_max_x {
-            // Distance from brush center
-            let dx = px as f32 - center.x;
-            let dy = py as f32 - center.y;
+            let dx      = px as f32 + 0.5 - center.x;
+            let dy      = py as f32 + 0.5 - center.y;
             let dist_sq = dx * dx + dy * dy;
-            
-            if dist_sq <= radius_sq {
-                // Soft falloff
-                let dist = dist_sq.sqrt();
-                let falloff = 1.0 - (dist / radius);
-                let alpha = (falloff * opacity * 255.0) as u8;
-                
-                // Convert canvas coords to tile-local coords
-                let local_x = (px - tile_offset_x) as usize;
-                let local_y = (py - tile_offset_y) as usize;
-                let idx = (local_y * TILE_SIZE as usize + local_x) * 4;
-                
-                if idx + 3 < tile_data.len() {
-                    // Alpha blend the brush color
-                    let src_alpha = alpha as f32 / 255.0;
-                    let dst_alpha = tile_data[idx + 3] as f32 / 255.0;
-                    let out_alpha = src_alpha + dst_alpha * (1.0 - src_alpha);
-                    
-                    if out_alpha > 0.0 {
-                        for i in 0..3 {
-                            let src = color[i] as f32;
-                            let dst = tile_data[idx + i] as f32;
-                            let blended = (src * src_alpha + dst * dst_alpha * (1.0 - src_alpha)) / out_alpha;
-                            tile_data[idx + i] = blended.min(255.0) as u8;
-                        }
-                        tile_data[idx + 3] = (out_alpha * 255.0).min(255.0) as u8;
+            if dist_sq > radius_sq { continue; }
+
+            let falloff   = 1.0 - (dist_sq.sqrt() / radius);
+            let coverage  = (falloff * opacity).clamp(0.0, 1.0);
+
+            let local_x = (px - tile_offset_x) as usize;
+            let local_y = (py - tile_offset_y) as usize;
+            let idx     = (local_y * TILE_SIZE as usize + local_x) * 4;
+            if idx + 3 >= tile_data.len() { continue; }
+
+            if erase {
+                // Erase: multiply destination alpha by (1 - coverage).
+                let dst_a     = tile_data[idx + 3] as f32 / 255.0;
+                let new_a     = (dst_a * (1.0 - coverage) * 255.0) as u8;
+                tile_data[idx + 3] = new_a;
+                if new_a == 0 {
+                    tile_data[idx]     = 0;
+                    tile_data[idx + 1] = 0;
+                    tile_data[idx + 2] = 0;
+                }
+            } else {
+                // Paint: standard Porter-Duff src-over composite.
+                let src_a = coverage;
+                let dst_a = tile_data[idx + 3] as f32 / 255.0;
+                let out_a = src_a + dst_a * (1.0 - src_a);
+                if out_a > 0.0 {
+                    for i in 0..3 {
+                        let src = color[i] as f32 / 255.0;
+                        let dst = tile_data[idx + i] as f32 / 255.0;
+                        let out = (src * src_a + dst * dst_a * (1.0 - src_a)) / out_a;
+                        tile_data[idx + i] = (out * 255.0).min(255.0) as u8;
                     }
+                    tile_data[idx + 3] = (out_a * 255.0).min(255.0) as u8;
                 }
             }
         }

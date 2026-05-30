@@ -9,6 +9,10 @@ pub struct CanvasRenderInput {
     pub zoom: f32,
     /// Canvas document dimensions in pixels.
     pub canvas_size: [f32; 2],
+    /// Logical display size of the viewport element in pixels.
+    /// This is used as the shader viewport so that mouse coordinates
+    /// (also in logical pixels) stay in the same space as pan/zoom.
+    pub viewport_size: [f32; 2],
     /// Cursor position in screen pixels (None if outside viewport).
     pub cursor_screen_pos: Option<[f32; 2]>,
     /// Brush radius in screen pixels.

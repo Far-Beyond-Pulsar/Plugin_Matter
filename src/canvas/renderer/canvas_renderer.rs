@@ -114,8 +114,15 @@ impl CanvasRenderer {
         }
         let state = self.state.as_mut().unwrap();
 
-        let vp_w = width  as f32;
-        let vp_h = height as f32;
+        // Use the LOGICAL display size (from GPUI element bounds) as viewport_size
+        // so that pan/zoom/mouse coordinates (all in logical pixels) stay in the
+        // same space as the shader.  The physical surface dimensions (width/height)
+        // may differ on HiDPI displays and would cause a scale mismatch.
+        let [vp_w, vp_h] = if input.viewport_size[0] > 0.0 && input.viewport_size[1] > 0.0 {
+            input.viewport_size
+        } else {
+            [width as f32, height as f32]  // fallback before first layout
+        };
 
         // ── Update grid uniforms ───────────────────────────────────────────
         let grid_u = GridUniforms {
