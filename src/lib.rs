@@ -5,11 +5,10 @@
 mod plugin;
 mod panel;
 mod panels;
-mod state;
+pub mod state;
 mod canvas;
 mod tools;
 mod ui;
 
 pub use plugin::MatterPlugin;
 pub use panel::MatterEditorPanel;
-pub use state::Document;

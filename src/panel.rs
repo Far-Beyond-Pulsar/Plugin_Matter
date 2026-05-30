@@ -18,7 +18,7 @@ pub struct MatterEditorPanel {
 }
 
 impl MatterEditorPanel {
-    pub fn new(document: Document, _window: &mut Window, cx: &mut App) -> Self {
+    pub fn new(document: Document, cx: &mut App) -> Self {
         let focus_handle = cx.focus_handle();
         
         let mut tools = ToolRegistry::new();
