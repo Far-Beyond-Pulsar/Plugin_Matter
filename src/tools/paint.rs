@@ -72,14 +72,13 @@ impl Tool for PaintTool {
     
     fn on_mouse_up(
         &mut self,
-        pif: Arc<Mutex<PifAssetManager>>,
-        layer_id: String,
-        color: [u8; 4],
+        _pif: Arc<Mutex<PifAssetManager>>,
+        _layer_id: String,
+        _color: [u8; 4],
     ) -> Result<Option<Box<dyn crate::state::history::Command>>> {
-        if let Some(stroke) = self.stroke.take() {
-            Ok(Some(Box::new(PaintStrokeCommand::new(pif, layer_id, stroke, color))))
-        } else {
-            Ok(None)
-        }
+        // Drawing is handled directly in CanvasViewport; the tool registry is
+        // used only for tool-state bookkeeping.
+        self.stroke = None;
+        Ok(None)
     }
 }

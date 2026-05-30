@@ -1,16 +1,19 @@
 //! Toolbar rendering
 
 use gpui::*;
+use parking_lot::RwLock;
+use std::sync::Arc;
 use ui::{button::{Button, ButtonVariants}, IconName, Theme};
 
 use crate::state::{Document, ActiveTool};
 
 pub fn render_toolbar(
     doc: &Document,
+    document: Arc<RwLock<Document>>,
     theme: &Theme,
 ) -> impl IntoElement {
-    let can_undo = !doc.history.is_empty_undo();
-    let can_redo = !doc.history.is_empty_redo();
+    let can_undo    = !doc.history.is_empty_undo();
+    let can_redo    = !doc.history.is_empty_redo();
     let active_tool = doc.tool_state.active_tool;
 
     div()
@@ -23,49 +26,62 @@ pub fn render_toolbar(
         .items_center()
         .px_2()
         .gap_1()
-        .child(
+        // ── History ────────────────────────────────────────────────────────
+        .child({
+            let doc_undo = document.clone();
+            let mut btn = Button::new("undo").icon(IconName::Undo).tooltip("Undo (Cmd+Z)");
             if can_undo {
-                Button::new("undo")
-                    .icon(IconName::Undo)
-                    .tooltip("Undo (Cmd+Z)")
-                    .on_click(|_, _, _| {})
-            } else {
-                Button::new("undo").icon(IconName::Undo)
+                btn = btn.on_click(move |_, _, _| {
+                    let _ = doc_undo.write().history.undo();
+                });
             }
-        )
-        .child(
+            btn
+        })
+        .child({
+            let doc_redo = document.clone();
+            let mut btn = Button::new("redo").icon(IconName::Redo).tooltip("Redo (Cmd+Shift+Z)");
             if can_redo {
-                Button::new("redo")
-                    .icon(IconName::Redo)
-                    .tooltip("Redo (Cmd+Shift+Z)")
-                    .on_click(|_, _, _| {})
-            } else {
-                Button::new("redo").icon(IconName::Redo)
+                btn = btn.on_click(move |_, _, _| {
+                    let _ = doc_redo.write().history.redo();
+                });
             }
-        )
+            btn
+        })
         .child(separator(theme))
-        .child(tool_button(IconName::EditPencil, "Paint (B)", active_tool == ActiveTool::Paint))
-        .child(tool_button(IconName::Erase, "Eraser (E)", active_tool == ActiveTool::Erase))
-        .child(tool_button(IconName::Droplet, "Fill (G)", active_tool == ActiveTool::Fill))
-        .child(tool_button(IconName::Eye, "Eyedropper (I)", active_tool == ActiveTool::Eyedropper))
-        .child(tool_button(IconName::DragHandGesture, "Pan (H)", active_tool == ActiveTool::Pan))
+        // ── Tools ──────────────────────────────────────────────────────────
+        .child(tool_button(document.clone(), IconName::EditPencil, "Paint (B)",       ActiveTool::Paint,      active_tool))
+        .child(tool_button(document.clone(), IconName::Erase,      "Eraser (E)",      ActiveTool::Erase,      active_tool))
+        .child(tool_button(document.clone(), IconName::Droplet,    "Fill (G)",        ActiveTool::Fill,       active_tool))
+        .child(tool_button(document.clone(), IconName::Eye,        "Eyedropper (I)",  ActiveTool::Eyedropper, active_tool))
+        .child(tool_button(document.clone(), IconName::DragHandGesture, "Pan (H)",    ActiveTool::Pan,        active_tool))
+        .child(separator(theme))
+        // ── Zoom label ─────────────────────────────────────────────────────
+        .child(
+            div()
+                .text_xs()
+                .text_color(theme.foreground.opacity(0.6))
+                .px_2()
+                .child("100%")   // TODO: bind to viewport zoom
+        )
 }
 
 fn tool_button(
-    icon: IconName,
+    document:    Arc<RwLock<Document>>,
+    icon:        IconName,
     tooltip_text: &str,
-    is_active: bool,
+    tool:        ActiveTool,
+    active_tool: ActiveTool,
 ) -> Button {
     let id = format!("tool_{:?}", icon);
-    let mut btn = Button::new(id)
-        .icon(icon)
-        .tooltip(tooltip_text);
-    
-    if is_active {
+    let mut btn = Button::new(id).icon(icon).tooltip(tooltip_text);
+
+    if active_tool == tool {
         btn = btn.primary();
     }
-    
-    btn.on_click(move |_, _, _| {})
+
+    btn.on_click(move |_, _, _| {
+        document.write().tool_state.active_tool = tool;
+    })
 }
 
 fn separator(theme: &Theme) -> impl IntoElement {

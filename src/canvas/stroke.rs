@@ -78,8 +78,7 @@ impl Stroke {
                     let tile_data = dirty_tiles.entry((tile_x, tile_y))
                         .or_insert_with(|| tile_loader(layer_id, tile_x, tile_y));
                     
-                    // Render circular brush stamp to this tile
-                    render_brush_to_tile(
+                    render_brush_stamp(
                         tile_data,
                         point,
                         size,
@@ -100,8 +99,9 @@ impl Stroke {
     }
 }
 
-/// Render a circular brush stamp to a tile
-fn render_brush_to_tile(
+/// Render a circular brush stamp to a 256×256 RGBA8 tile.
+/// `tile_origin_{x,y}` is the canvas-space top-left of this tile.
+pub fn render_brush_stamp(
     tile_data: &mut [u8],
     center: Point<f32>,
     size: f32,

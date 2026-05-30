@@ -1,17 +1,18 @@
-//! Properties panel
+//! Properties panel — brush settings and color pickers.
 
 use gpui::*;
-use ui::Theme;
+use ui::{color_picker::ColorPicker, Theme};
 
 use crate::state::Document;
 
 pub fn render_properties_panel(
-    doc: &Document,
-    theme: &Theme,
+    doc:       &Document,
+    fg_picker: &Entity<ui::color_picker::ColorPickerState>,
+    bg_picker: &Entity<ui::color_picker::ColorPickerState>,
+    theme:     &Theme,
 ) -> impl IntoElement {
-    let tool_state = &doc.tool_state;
-    let fg = tool_state.foreground_color;
-    let bg = tool_state.background_color;
+    let brush_size    = doc.tool_state.brush_size;
+    let brush_opacity = doc.tool_state.brush_opacity;
 
     div()
         .flex()
@@ -21,6 +22,7 @@ pub fn render_properties_panel(
         .bg(theme.sidebar)
         .border_l_1()
         .border_color(theme.border)
+        // ── Header ────────────────────────────────────────────────────────
         .child(
             div()
                 .flex()
@@ -38,6 +40,7 @@ pub fn render_properties_panel(
                         .child("Properties")
                 )
         )
+        // ── Colour section ─────────────────────────────────────────────────
         .child(
             div()
                 .flex()
@@ -55,49 +58,45 @@ pub fn render_properties_panel(
                 .child(
                     div()
                         .flex()
-                        .gap_2()
+                        .gap_3()
+                        .items_start()
+                        // Foreground picker
                         .child(
                             div()
                                 .flex()
                                 .flex_col()
                                 .gap_1()
-                                .child(div().text_xs().text_color(theme.foreground.opacity(0.6)).child("Foreground"))
                                 .child(
                                     div()
-                                        .w(px(60.0))
-                                        .h(px(60.0))
-                                        .rounded_md()
-                                        .border_1()
-                                        .border_color(theme.border)
-                                        .bg(rgb(
-                                            ((fg.r * 255.0) as u32) << 16 |
-                                            ((fg.g * 255.0) as u32) << 8 |
-                                            (fg.b * 255.0) as u32
-                                        ))
+                                        .text_xs()
+                                        .text_color(theme.foreground.opacity(0.6))
+                                        .child("Foreground")
+                                )
+                                .child(
+                                    ColorPicker::new(fg_picker)
+                                        .label("Foreground")
                                 )
                         )
+                        // Background picker
                         .child(
                             div()
                                 .flex()
                                 .flex_col()
                                 .gap_1()
-                                .child(div().text_xs().text_color(theme.foreground.opacity(0.6)).child("Background"))
                                 .child(
                                     div()
-                                        .w(px(60.0))
-                                        .h(px(60.0))
-                                        .rounded_md()
-                                        .border_1()
-                                        .border_color(theme.border)
-                                        .bg(rgb(
-                                            ((bg.r * 255.0) as u32) << 16 |
-                                            ((bg.g * 255.0) as u32) << 8 |
-                                            (bg.b * 255.0) as u32
-                                        ))
+                                        .text_xs()
+                                        .text_color(theme.foreground.opacity(0.6))
+                                        .child("Background")
+                                )
+                                .child(
+                                    ColorPicker::new(bg_picker)
+                                        .label("Background")
                                 )
                         )
                 )
         )
+        // ── Brush section ──────────────────────────────────────────────────
         .child(
             div()
                 .flex()
@@ -107,8 +106,20 @@ pub fn render_properties_panel(
                 .gap_2()
                 .border_t_1()
                 .border_color(theme.border.opacity(0.5))
-                .child(div().text_xs().font_weight(FontWeight::SEMIBOLD).text_color(theme.foreground.opacity(0.7)).child("BRUSH"))
-                .child(div().text_xs().text_color(theme.foreground.opacity(0.6)).child(format!("Size: {:.0}px", tool_state.brush_size)))
-                .child(div().text_xs().text_color(theme.foreground.opacity(0.6)).child(format!("Opacity: {:.0}%", tool_state.brush_opacity * 100.0)))
+                .child(
+                    div()
+                        .text_xs()
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(theme.foreground.opacity(0.7))
+                        .child("BRUSH")
+                )
+                .child(
+                    div().text_xs().text_color(theme.foreground.opacity(0.6))
+                         .child(format!("Size: {:.0}px", brush_size))
+                )
+                .child(
+                    div().text_xs().text_color(theme.foreground.opacity(0.6))
+                         .child(format!("Opacity: {:.0}%", brush_opacity * 100.0))
+                )
         )
 }

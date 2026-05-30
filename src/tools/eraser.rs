@@ -73,15 +73,11 @@ impl Tool for EraserTool {
     
     fn on_mouse_up(
         &mut self,
-        pif: Arc<Mutex<PifAssetManager>>,
-        layer_id: String,
+        _pif: Arc<Mutex<PifAssetManager>>,
+        _layer_id: String,
         _color: [u8; 4],
     ) -> Result<Option<Box<dyn crate::state::history::Command>>> {
-        let transparent = [0, 0, 0, 0];
-        if let Some(stroke) = self.stroke.take() {
-            Ok(Some(Box::new(PaintStrokeCommand::new(pif, layer_id, stroke, transparent))))
-        } else {
-            Ok(None)
-        }
+        self.stroke = None;
+        Ok(None)
     }
 }

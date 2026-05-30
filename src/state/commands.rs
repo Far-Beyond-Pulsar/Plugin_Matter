@@ -7,39 +7,31 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::Mutex;
 
-/// Paint stroke command
+/// Paint stroke command — stores full before/after tile snapshots so the
+/// stroke can be undone/redone without re-rasterizing.
 pub struct PaintStrokeCommand {
     pif: Arc<Mutex<PifAssetManager>>,
-    layer_id: String,
-    tiles_before: HashMap<(u32, u32), Vec<u8>>,
-    tiles_after: HashMap<(u32, u32), Vec<u8>>,
+    /// (layer_id, tile_x, tile_y) → pixel data
+    tiles_before: HashMap<(String, u32, u32), Vec<u8>>,
+    tiles_after:  HashMap<(String, u32, u32), Vec<u8>>,
 }
 
 impl PaintStrokeCommand {
-    pub fn new(
+    /// Construct from already-applied tile snapshots.
+    /// The caller is responsible for having already written `tiles_after`
+    /// to PIF via `commit_changes`; this command only handles undo/redo.
+    pub fn from_tiles(
         pif: Arc<Mutex<PifAssetManager>>,
-        layer_id: String,
-        stroke: crate::canvas::stroke::Stroke,
-        color: [u8; 4],
+        tiles_before: HashMap<(String, u32, u32), Vec<u8>>,
+        tiles_after:  HashMap<(String, u32, u32), Vec<u8>>,
     ) -> Self {
-        let tiles_before = HashMap::new();
-        let tiles_after = HashMap::new();
-        
-        // TODO: Rasterize stroke to tiles
-        
-        Self {
-            pif,
-            layer_id,
-            tiles_before,
-            tiles_after,
-        }
+        Self { pif, tiles_before, tiles_after }
     }
 }
 
 impl std::fmt::Debug for PaintStrokeCommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PaintStrokeCommand")
-            .field("layer_id", &self.layer_id)
             .field("tile_count", &self.tiles_after.len())
             .finish()
     }
@@ -47,32 +39,18 @@ impl std::fmt::Debug for PaintStrokeCommand {
 
 impl Command for PaintStrokeCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock();
-        let mut changes = HashMap::new();
-        
-        for ((tx, ty), pixels) in &self.tiles_after {
-            changes.insert((self.layer_id.clone(), *tx, *ty), pixels.clone());
-        }
-        
-        pif.commit_changes(changes)
+        self.pif.lock()
+            .commit_changes(self.tiles_after.clone())
             .map_err(|e| CommandError::ExecutionFailed(e.to_string()))
     }
-    
+
     fn undo(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock();
-        let mut changes = HashMap::new();
-        
-        for ((tx, ty), pixels) in &self.tiles_before {
-            changes.insert((self.layer_id.clone(), *tx, *ty), pixels.clone());
-        }
-        
-        pif.commit_changes(changes)
+        self.pif.lock()
+            .commit_changes(self.tiles_before.clone())
             .map_err(|e| CommandError::UndoFailed(e.to_string()))
     }
-    
-    fn description(&self) -> &str {
-        "Paint Stroke"
-    }
+
+    fn description(&self) -> &str { "Paint Stroke" }
 }
 
 /// Create layer command

@@ -125,6 +125,16 @@ impl History {
         self.redo_stack.last().map(|cmd| cmd.description())
     }
     
+    /// Push a command that has *already been applied* to the document.
+    /// Skips calling `execute()`; only registers it for undo.
+    pub fn push_executed(&mut self, command: Box<dyn Command>) {
+        self.redo_stack.clear();
+        self.undo_stack.push(command);
+        if self.undo_stack.len() > self.max_size {
+            self.undo_stack.remove(0);
+        }
+    }
+
     /// Clear all history
     pub fn clear(&mut self) {
         self.undo_stack.clear();
