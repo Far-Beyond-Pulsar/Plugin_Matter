@@ -1,143 +1,138 @@
-//! Concrete command implementations for all document operations
+//! Command implementations for undo/redo
 
-use super::history::{Command, CommandError, CommandResult};
-use pulsar_image_format::model::Layer;
+use super::history::{Command, CommandResult, CommandError};
 use pulsar_image_format::PifAssetManager;
+use pulsar_image_format::model::Layer;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::fmt;
+use std::sync::Arc;
+use parking_lot::Mutex;
 
-/// Command to paint a brush stroke on a raster layer
+/// Paint stroke command
 pub struct PaintStrokeCommand {
-    /// Layer ID to paint on
-    layer_id: String,
-    
-    /// Dirty tiles with before/after state: (tile_x, tile_y) -> (before, after)
-    tiles: HashMap<(u32, u32), (Vec<u8>, Vec<u8>)>,
-    
-    /// Reference to the PIF asset manager
     pif: Arc<Mutex<PifAssetManager>>,
-    
-    /// Description of the stroke
-    description: String,
-}
-
-impl fmt::Debug for PaintStrokeCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PaintStrokeCommand")
-            .field("layer_id", &self.layer_id)
-            .field("tiles", &self.tiles.len())
-            .field("description", &self.description)
-            .finish()
-    }
+    layer_id: String,
+    tiles_before: HashMap<(u32, u32), Vec<u8>>,
+    tiles_after: HashMap<(u32, u32), Vec<u8>>,
 }
 
 impl PaintStrokeCommand {
     pub fn new(
-        layer_id: String,
-        tiles: HashMap<(u32, u32), (Vec<u8>, Vec<u8>)>,
         pif: Arc<Mutex<PifAssetManager>>,
+        layer_id: String,
+        stroke: crate::canvas::stroke::Stroke,
+        color: [u8; 4],
     ) -> Self {
-        let tile_count = tiles.len();
+        let tiles_before = HashMap::new();
+        let tiles_after = HashMap::new();
+        
+        // TODO: Rasterize stroke to tiles
+        
         Self {
-            layer_id,
-            tiles,
             pif,
-            description: format!("Paint Stroke ({} tiles)", tile_count),
+            layer_id,
+            tiles_before,
+            tiles_after,
         }
+    }
+}
+
+impl std::fmt::Debug for PaintStrokeCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PaintStrokeCommand")
+            .field("layer_id", &self.layer_id)
+            .field("tile_count", &self.tiles_after.len())
+            .finish()
     }
 }
 
 impl Command for PaintStrokeCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock().unwrap();
-        let mut dirty_tiles = HashMap::new();
+        let mut pif = self.pif.lock();
+        let mut changes = HashMap::new();
         
-        for ((tile_x, tile_y), (_before, after)) in &self.tiles {
-            dirty_tiles.insert(
-                (self.layer_id.clone(), *tile_x, *tile_y),
-                after.clone(),
-            );
+        for ((tx, ty), pixels) in &self.tiles_after {
+            changes.insert((self.layer_id.clone(), *tx, *ty), pixels.clone());
         }
         
-        pif.commit_changes(dirty_tiles)
+        pif.commit_changes(changes)
             .map_err(|e| CommandError::ExecutionFailed(e.to_string()))
     }
     
     fn undo(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock().unwrap();
-        let mut dirty_tiles = HashMap::new();
+        let mut pif = self.pif.lock();
+        let mut changes = HashMap::new();
         
-        for ((tile_x, tile_y), (before, _after)) in &self.tiles {
-            dirty_tiles.insert(
-                (self.layer_id.clone(), *tile_x, *tile_y),
-                before.clone(),
-            );
+        for ((tx, ty), pixels) in &self.tiles_before {
+            changes.insert((self.layer_id.clone(), *tx, *ty), pixels.clone());
         }
         
-        pif.commit_changes(dirty_tiles)
+        pif.commit_changes(changes)
             .map_err(|e| CommandError::UndoFailed(e.to_string()))
     }
     
     fn description(&self) -> &str {
-        &self.description
+        "Paint Stroke"
     }
 }
 
-/// Command to create a new layer
+/// Create layer command
 pub struct CreateLayerCommand {
-    /// The layer to create
-    layer: Option<Layer>,
-    
-    /// Position to insert at
-    position: usize,
-    
-    /// Reference to the PIF asset manager
     pif: Arc<Mutex<PifAssetManager>>,
-}
-
-impl fmt::Debug for CreateLayerCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CreateLayerCommand")
-            .field("position", &self.position)
-            .finish()
-    }
+    layer_id: String,
+    layer_name: String,
 }
 
 impl CreateLayerCommand {
-    pub fn new(layer: Layer, position: usize, pif: Arc<Mutex<PifAssetManager>>) -> Self {
+    pub fn new(
+        pif: Arc<Mutex<PifAssetManager>>,
+        layer_id: String,
+        layer_name: String,
+    ) -> Self {
         Self {
-            layer: Some(layer),
-            position,
             pif,
+            layer_id,
+            layer_name,
         }
+    }
+}
+
+impl std::fmt::Debug for CreateLayerCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CreateLayerCommand")
+            .field("layer_id", &self.layer_id)
+            .field("layer_name", &self.layer_name)
+            .finish()
     }
 }
 
 impl Command for CreateLayerCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        if let Some(layer) = self.layer.take() {
-            let mut pif = self.pif.lock().unwrap();
-            let manifest = pif.manifest_mut();
-            
-            if self.position <= manifest.layers.len() {
-                manifest.layers.insert(self.position, layer);
-                Ok(())
-            } else {
-                Err(CommandError::ExecutionFailed("Invalid layer position".to_string()))
-            }
-        } else {
-            Err(CommandError::ExecutionFailed("Layer already executed".to_string()))
-        }
+        let mut pif = self.pif.lock();
+        
+        let new_layer = Layer::Raster {
+            id: self.layer_id.clone(),
+            name: self.layer_name.clone(),
+            visible: true,
+            opacity: 1.0,
+            blend_mode: "normal".to_string(),
+            tile_size: 256,
+            tiles: HashMap::new(),
+        };
+        
+        pif.manifest_mut().layers.push(new_layer);
+        Ok(())
     }
     
     fn undo(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock().unwrap();
+        let mut pif = self.pif.lock();
         let manifest = pif.manifest_mut();
         
-        if self.position < manifest.layers.len() {
-            let layer = manifest.layers.remove(self.position);
-            self.layer = Some(layer);
+        if let Some(pos) = manifest.layers.iter().position(|l| {
+            match l {
+                Layer::Raster { id, .. } | Layer::Vector { id, .. } => id == &self.layer_id
+            }
+        }) {
+            manifest.layers.remove(pos);
             Ok(())
         } else {
             Err(CommandError::UndoFailed("Layer not found".to_string()))
@@ -149,44 +144,45 @@ impl Command for CreateLayerCommand {
     }
 }
 
-/// Command to delete a layer
+/// Delete layer command
 pub struct DeleteLayerCommand {
-    /// The deleted layer (stored for undo)
-    layer: Option<Layer>,
-    
-    /// Position the layer was at
-    position: usize,
-    
-    /// Reference to the PIF asset manager
     pif: Arc<Mutex<PifAssetManager>>,
-}
-
-impl fmt::Debug for DeleteLayerCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DeleteLayerCommand")
-            .field("position", &self.position)
-            .finish()
-    }
+    layer_id: String,
+    layer_backup: Option<Layer>,
+    layer_index: Option<usize>,
 }
 
 impl DeleteLayerCommand {
-    pub fn new(position: usize, pif: Arc<Mutex<PifAssetManager>>) -> Self {
+    pub fn new(pif: Arc<Mutex<PifAssetManager>>, layer_id: String) -> Self {
         Self {
-            layer: None,
-            position,
             pif,
+            layer_id,
+            layer_backup: None,
+            layer_index: None,
         }
+    }
+}
+
+impl std::fmt::Debug for DeleteLayerCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DeleteLayerCommand")
+            .field("layer_id", &self.layer_id)
+            .finish()
     }
 }
 
 impl Command for DeleteLayerCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock().unwrap();
+        let mut pif = self.pif.lock();
         let manifest = pif.manifest_mut();
         
-        if self.position < manifest.layers.len() {
-            let layer = manifest.layers.remove(self.position);
-            self.layer = Some(layer);
+        if let Some(pos) = manifest.layers.iter().position(|l| {
+            match l {
+                Layer::Raster { id, .. } | Layer::Vector { id, .. } => id == &self.layer_id
+            }
+        }) {
+            self.layer_backup = Some(manifest.layers.remove(pos));
+            self.layer_index = Some(pos);
             Ok(())
         } else {
             Err(CommandError::ExecutionFailed("Layer not found".to_string()))
@@ -194,18 +190,12 @@ impl Command for DeleteLayerCommand {
     }
     
     fn undo(&mut self) -> CommandResult<()> {
-        if let Some(layer) = self.layer.take() {
-            let mut pif = self.pif.lock().unwrap();
-            let manifest = pif.manifest_mut();
-            
-            if self.position <= manifest.layers.len() {
-                manifest.layers.insert(self.position, layer);
-                Ok(())
-            } else {
-                Err(CommandError::UndoFailed("Invalid layer position".to_string()))
-            }
+        if let (Some(layer), Some(index)) = (self.layer_backup.take(), self.layer_index) {
+            let mut pif = self.pif.lock();
+            pif.manifest_mut().layers.insert(index, layer);
+            Ok(())
         } else {
-            Err(CommandError::UndoFailed("No layer to restore".to_string()))
+            Err(CommandError::UndoFailed("No backup layer".to_string()))
         }
     }
     
@@ -214,54 +204,47 @@ impl Command for DeleteLayerCommand {
     }
 }
 
-/// Command to toggle layer visibility
+/// Toggle layer visibility command
 pub struct ToggleLayerVisibilityCommand {
-    /// Layer ID to toggle
-    layer_id: String,
-    
-    /// Reference to the PIF asset manager
     pif: Arc<Mutex<PifAssetManager>>,
+    layer_id: String,
 }
 
-impl fmt::Debug for ToggleLayerVisibilityCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl ToggleLayerVisibilityCommand {
+    pub fn new(pif: Arc<Mutex<PifAssetManager>>, layer_id: String) -> Self {
+        Self { pif, layer_id }
+    }
+}
+
+impl std::fmt::Debug for ToggleLayerVisibilityCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ToggleLayerVisibilityCommand")
             .field("layer_id", &self.layer_id)
             .finish()
     }
 }
 
-impl ToggleLayerVisibilityCommand {
-    pub fn new(layer_id: String, pif: Arc<Mutex<PifAssetManager>>) -> Self {
-        Self { layer_id, pif }
-    }
-}
-
 impl Command for ToggleLayerVisibilityCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock().unwrap();
+        let mut pif = self.pif.lock();
         let manifest = pif.manifest_mut();
         
         for layer in &mut manifest.layers {
-            let id = match layer {
-                Layer::Raster { id, .. } => id,
-                Layer::Vector { id, .. } => id,
-            };
-            
-            if id == &self.layer_id {
-                match layer {
-                    Layer::Raster { visible, .. } => *visible = !*visible,
-                    Layer::Vector { visible, .. } => *visible = !*visible,
+            match layer {
+                Layer::Raster { id, visible, .. } | Layer::Vector { id, visible, .. } => {
+                    if id == &self.layer_id {
+                        *visible = !*visible;
+                        return Ok(());
+                    }
                 }
-                return Ok(());
             }
         }
         
-        Err(CommandError::ExecutionFailed(format!("Layer {} not found", self.layer_id)))
+        Err(CommandError::ExecutionFailed("Layer not found".to_string()))
     }
     
     fn undo(&mut self) -> CommandResult<()> {
-        // Toggling is symmetric, so undo is the same as execute
+        // Toggle is its own inverse
         self.execute()
     }
     
@@ -270,71 +253,72 @@ impl Command for ToggleLayerVisibilityCommand {
     }
 }
 
-/// Command to set layer opacity
+/// Set layer opacity command
 pub struct SetLayerOpacityCommand {
-    /// Layer ID to modify
-    layer_id: String,
-    
-    /// Old opacity (for undo)
-    old_opacity: f32,
-    
-    /// New opacity
-    new_opacity: f32,
-    
-    /// Reference to the PIF asset manager
     pif: Arc<Mutex<PifAssetManager>>,
-}
-
-impl fmt::Debug for SetLayerOpacityCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SetLayerOpacityCommand")
-            .field("layer_id", &self.layer_id)
-            .field("old_opacity", &self.old_opacity)
-            .field("new_opacity", &self.new_opacity)
-            .finish()
-    }
+    layer_id: String,
+    new_opacity: f32,
+    old_opacity: Option<f32>,
 }
 
 impl SetLayerOpacityCommand {
-    pub fn new(layer_id: String, old_opacity: f32, new_opacity: f32, pif: Arc<Mutex<PifAssetManager>>) -> Self {
+    pub fn new(pif: Arc<Mutex<PifAssetManager>>, layer_id: String, opacity: f32) -> Self {
         Self {
-            layer_id,
-            old_opacity,
-            new_opacity,
             pif,
+            layer_id,
+            new_opacity: opacity,
+            old_opacity: None,
         }
     }
-    
-    fn set_opacity(&self, opacity: f32) -> CommandResult<()> {
-        let mut pif = self.pif.lock().unwrap();
-        let manifest = pif.manifest_mut();
-        
-        for layer in &mut manifest.layers {
-            let id = match layer {
-                Layer::Raster { id, .. } => id,
-                Layer::Vector { id, .. } => id,
-            };
-            
-            if id == &self.layer_id {
-                match layer {
-                    Layer::Raster { opacity: o, .. } => *o = opacity,
-                    Layer::Vector { opacity: o, .. } => *o = opacity,
-                }
-                return Ok(());
-            }
-        }
-        
-        Err(CommandError::ExecutionFailed(format!("Layer {} not found", self.layer_id)))
+}
+
+impl std::fmt::Debug for SetLayerOpacityCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SetLayerOpacityCommand")
+            .field("layer_id", &self.layer_id)
+            .field("opacity", &self.new_opacity)
+            .finish()
     }
 }
 
 impl Command for SetLayerOpacityCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        self.set_opacity(self.new_opacity)
+        let mut pif = self.pif.lock();
+        let manifest = pif.manifest_mut();
+        
+        for layer in &mut manifest.layers {
+            match layer {
+                Layer::Raster { id, opacity, .. } | Layer::Vector { id, opacity, .. } => {
+                    if id == &self.layer_id {
+                        self.old_opacity = Some(*opacity);
+                        *opacity = self.new_opacity;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        
+        Err(CommandError::ExecutionFailed("Layer not found".to_string()))
     }
     
     fn undo(&mut self) -> CommandResult<()> {
-        self.set_opacity(self.old_opacity)
+        if let Some(old) = self.old_opacity {
+            let mut pif = self.pif.lock();
+            let manifest = pif.manifest_mut();
+            
+            for layer in &mut manifest.layers {
+                match layer {
+                    Layer::Raster { id, opacity, .. } | Layer::Vector { id, opacity, .. } => {
+                        if id == &self.layer_id {
+                            *opacity = old;
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+        }
+        
+        Err(CommandError::UndoFailed("No old opacity stored".to_string()))
     }
     
     fn description(&self) -> &str {
@@ -342,53 +326,52 @@ impl Command for SetLayerOpacityCommand {
     }
 }
 
-/// Command to reorder layers
+/// Reorder layers command
 pub struct ReorderLayersCommand {
-    /// Old position
-    from: usize,
-    
-    /// New position
-    to: usize,
-    
-    /// Reference to the PIF asset manager
     pif: Arc<Mutex<PifAssetManager>>,
-}
-
-impl fmt::Debug for ReorderLayersCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ReorderLayersCommand")
-            .field("from", &self.from)
-            .field("to", &self.to)
-            .finish()
-    }
+    from_index: usize,
+    to_index: usize,
 }
 
 impl ReorderLayersCommand {
-    pub fn new(from: usize, to: usize, pif: Arc<Mutex<PifAssetManager>>) -> Self {
-        Self { from, to, pif }
-    }
-    
-    fn move_layer(&self, from: usize, to: usize) -> CommandResult<()> {
-        let mut pif = self.pif.lock().unwrap();
-        let manifest = pif.manifest_mut();
-        
-        if from >= manifest.layers.len() || to >= manifest.layers.len() {
-            return Err(CommandError::ExecutionFailed("Invalid layer positions".to_string()));
+    pub fn new(pif: Arc<Mutex<PifAssetManager>>, from: usize, to: usize) -> Self {
+        Self {
+            pif,
+            from_index: from,
+            to_index: to,
         }
-        
-        let layer = manifest.layers.remove(from);
-        manifest.layers.insert(to, layer);
-        Ok(())
+    }
+}
+
+impl std::fmt::Debug for ReorderLayersCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReorderLayersCommand")
+            .field("from", &self.from_index)
+            .field("to", &self.to_index)
+            .finish()
     }
 }
 
 impl Command for ReorderLayersCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        self.move_layer(self.from, self.to)
+        let mut pif = self.pif.lock();
+        let layers = &mut pif.manifest_mut().layers;
+        
+        if self.from_index >= layers.len() || self.to_index >= layers.len() {
+            return Err(CommandError::ExecutionFailed("Invalid layer index".to_string()));
+        }
+        
+        let layer = layers.remove(self.from_index);
+        layers.insert(self.to_index, layer);
+        Ok(())
     }
     
     fn undo(&mut self) -> CommandResult<()> {
-        self.move_layer(self.to, self.from)
+        // Swap indices and execute
+        std::mem::swap(&mut self.from_index, &mut self.to_index);
+        let result = self.execute();
+        std::mem::swap(&mut self.from_index, &mut self.to_index);
+        result
     }
     
     fn description(&self) -> &str {

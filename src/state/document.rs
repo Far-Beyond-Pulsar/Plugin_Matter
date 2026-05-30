@@ -4,7 +4,8 @@ use pulsar_image_format::{PifAssetManager, SaveMode};
 use pulsar_image_format::model::Layer;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 use thiserror::Error;
 
 use super::history::History;
@@ -29,7 +30,7 @@ pub struct Document {
     path: Option<PathBuf>,
     
     /// PIF asset manager (wrapped for thread-safe command access)
-    pif: Arc<Mutex<PifAssetManager>>,
+    pub pif: Arc<Mutex<PifAssetManager>>,
     
     /// Active layer ID
     active_layer: Option<String>,
@@ -119,14 +120,14 @@ impl Document {
     
     /// Get canvas dimensions
     pub fn dimensions(&self) -> (u32, u32) {
-        let pif = self.pif.lock().unwrap();
+        let pif = self.pif.lock();
         let canvas = &pif.manifest().canvas;
         (canvas.width, canvas.height)
     }
     
     /// Get the list of layers (cloned for rendering)
     pub fn layers(&self) -> Vec<Layer> {
-        let pif = self.pif.lock().unwrap();
+        let pif = self.pif.lock();
         pif.manifest().layers.clone()
     }
     
@@ -145,7 +146,7 @@ impl Document {
     pub fn add_raster_layer(&mut self, name: String) -> String {
         let id = format!("layer_{}", uuid::Uuid::new_v4());
         
-        let mut pif = self.pif.lock().unwrap();
+        let mut pif = self.pif.lock();
         pif.manifest_mut().layers.push(Layer::Raster {
             id: id.clone(),
             name,
@@ -162,7 +163,7 @@ impl Document {
     
     /// Load a tile from a layer
     pub fn load_tile(&self, layer_id: &str, tile_x: u32, tile_y: u32) -> Result<Vec<u8>> {
-        let pif = self.pif.lock().unwrap();
+        let pif = self.pif.lock();
         Ok(pif.load_raster_tile(layer_id, tile_x, tile_y)?)
     }
     

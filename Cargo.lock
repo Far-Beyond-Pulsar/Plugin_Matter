@@ -201,7 +201,7 @@ version = "0.38.0+1.3.281"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bb44936d800fea8f016d7f2311c6a4f97aebd5dc86f09906139ec848cf3a46f"
 dependencies = [
- "libloading",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -532,12 +532,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "block-buffer"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdd35008169921d80bc60d3d0ab416eecb028c4cd653352907921d95084790be"
+dependencies = [
+ "hybrid-array",
+]
+
+[[package]]
 name = "block2"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2c132eebf10f5cad5289222520a4a058514204aed6d791f1cf4fe8088b82d15f"
 dependencies = [
  "objc2 0.5.2",
+]
+
+[[package]]
+name = "block2"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdeb9d870516001442e364c5220d3574d2da8dc765554b4a617230d33fa58ef5"
+dependencies = [
+ "objc2 0.6.4",
 ]
 
 [[package]]
@@ -928,6 +946,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "const-oid"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -940,6 +964,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "633458d4ef8c78b72454de2d54fd6ab2e60f9e02be22f3c6104cdc8a4e0fceb9"
 dependencies = [
  "unicode-segmentation",
+]
+
+[[package]]
+name = "cookie"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ddef33a339a91ea89fb53151bd0a4689cfce27055c291dfa69945475d22c747"
+dependencies = [
+ "percent-encoding",
+ "time",
+ "version_check",
+]
+
+[[package]]
+name = "cookie_store"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15b2c103cf610ec6cae3da84a766285b42fd16aad564758459e6ecf128c75206"
+dependencies = [
+ "cookie",
+ "document-features",
+ "idna",
+ "indexmap",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "time",
+ "url",
 ]
 
 [[package]]
@@ -1156,6 +1209,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto-common"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453"
+dependencies = [
+ "hybrid-array",
+]
+
+[[package]]
 name = "ctor"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1280,8 +1342,19 @@ version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
- "block-buffer",
- "crypto-common",
+ "block-buffer 0.10.4",
+ "crypto-common 0.1.7",
+]
+
+[[package]]
+name = "digest"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2"
+dependencies = [
+ "block-buffer 0.12.0",
+ "const-oid",
+ "crypto-common 0.2.2",
 ]
 
 [[package]]
@@ -1294,12 +1367,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "directories"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16f5094c54661b38d03bd7e50df373292118db60b585c08a411c6d840017fe7d"
+dependencies = [
+ "dirs-sys 0.5.0",
+]
+
+[[package]]
 name = "dirs"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca3aa72a6f96ea37bbc5aa912f6788242832f75369bdfdadcb0e38423f100059"
 dependencies = [
  "dirs-sys 0.3.7",
+]
+
+[[package]]
+name = "dirs"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
+dependencies = [
+ "dirs-sys 0.4.1",
 ]
 
 [[package]]
@@ -1379,7 +1470,7 @@ version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab8ecd87370524b461f8557c119c405552c396ed91fc0a8eec68679eab26f94a"
 dependencies = [
- "libloading",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -1475,6 +1566,61 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "engine_class_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "pulsar_reflection",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "engine_fs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "helio-snapshot",
+ "image",
+ "notify 8.2.0",
+ "parking_lot",
+ "plugin_editor_api",
+ "plugin_manager",
+ "profiling 0.1.0",
+ "serde",
+ "serde_json",
+ "tool_registry",
+ "tool_registry_macros",
+ "tracing",
+ "type_db",
+ "ui_types_common",
+ "ureq",
+ "urlencoding",
+ "walkdir",
+]
+
+[[package]]
+name = "engine_state"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dashmap",
+ "directories 6.0.0",
+ "gpui-ce",
+ "parking_lot",
+ "pulsar-config",
+ "pulsar_settings",
+ "rust-discord-activity",
+ "serde",
+ "toml 1.1.2+spec-1.1.0",
+ "tracing",
+ "type_db",
+ "ui_types_common",
+ "window_manager",
 ]
 
 [[package]]
@@ -1610,6 +1756,18 @@ dependencies = [
  "smallvec",
  "zune-inflate",
 ]
+
+[[package]]
+name = "fallible-iterator"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649"
+
+[[package]]
+name = "fallible-streaming-iterator"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "fast-float2"
@@ -2073,6 +2231,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e05e7e6723e3455f4818c7b26e855439f7546cf617ef669d1adedb8669e5cb9"
+
+[[package]]
+name = "glam"
+version = "0.33.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fb167719045debebe9f532320accc7b5c993c5a3b813f5696a11d5ca7bdc57b"
+dependencies = [
+ "bytemuck",
+ "serde_core",
+]
+
+[[package]]
 name = "glob"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2192,7 +2366,7 @@ dependencies = [
  "pollster 0.4.0",
  "postage",
  "priority-threadpool",
- "profiling",
+ "profiling 1.0.18",
  "rand 0.10.1",
  "raw-window-handle",
  "resvg",
@@ -2269,7 +2443,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
- "sha2",
+ "sha2 0.10.9",
  "tempfile",
  "url",
  "zed-async-tar",
@@ -2409,6 +2583,9 @@ name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+dependencies = [
+ "ahash",
+]
 
 [[package]]
 name = "hashbrown"
@@ -2437,10 +2614,377 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
+name = "hashlink"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ba4ff7128dee98c7dc9794b6a411377e1404dba1c97deb8d1a55297bd25d8af"
+dependencies = [
+ "hashbrown 0.14.5",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
+name = "helio"
+version = "0.17.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "arrayvec",
+ "bytemuck",
+ "glam 0.33.0",
+ "helio-pass-billboard",
+ "helio-pass-debug",
+ "helio-pass-deferred-light",
+ "helio-pass-depth-prepass",
+ "helio-pass-fxaa",
+ "helio-pass-gbuffer",
+ "helio-pass-hiz",
+ "helio-pass-hlfs",
+ "helio-pass-indirect-dispatch",
+ "helio-pass-light-cull",
+ "helio-pass-occlusion-cull",
+ "helio-pass-perf-overlay",
+ "helio-pass-shadow",
+ "helio-pass-shadow-dirty",
+ "helio-pass-shadow-matrix",
+ "helio-pass-simple-cube",
+ "helio-pass-sky",
+ "helio-pass-sky-lut",
+ "helio-pass-smaa",
+ "helio-pass-ssao",
+ "helio-pass-taa",
+ "helio-pass-transparent",
+ "helio-pass-virtual-geometry",
+ "helio-pass-water-sim",
+ "helio-v3",
+ "image",
+ "libhelio",
+ "log",
+ "pollster 0.4.0",
+ "quark",
+ "thiserror 2.0.18",
+ "web-time",
+ "wgpu",
+ "windows 0.62.2",
+]
+
+[[package]]
+name = "helio-asset-compat"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "glam 0.33.0",
+ "helio",
+ "image",
+ "libhelio",
+ "log",
+ "solid-fbx",
+ "solid-gltf",
+ "solid-obj",
+ "solid-rs",
+ "solid-usd",
+ "thiserror 2.0.18",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-billboard"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-debug"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-deferred-light"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-depth-prepass"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "log",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-fxaa"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-gbuffer"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "log",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-hiz"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "log",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-hlfs"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "glam 0.33.0",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-indirect-dispatch"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-light-cull"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-occlusion-cull"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-perf-overlay"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-shadow"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "log",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-shadow-dirty"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-shadow-matrix"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-simple-cube"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "log",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-sky"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-sky-lut"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-smaa"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-ssao"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-taa"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-transparent"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-virtual-geometry"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "log",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-pass-water-sim"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "helio-v3",
+ "libhelio",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-snapshot"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "futures-channel",
+ "glam 0.33.0",
+ "helio",
+ "helio-asset-compat",
+ "image",
+ "log",
+ "pollster 0.4.0",
+ "thiserror 2.0.18",
+ "wgpu",
+]
+
+[[package]]
+name = "helio-v3"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "glam 0.33.0",
+ "libhelio",
+ "thiserror 2.0.18",
+ "wgpu",
+]
 
 [[package]]
 name = "hermit-abi"
@@ -2511,6 +3055,15 @@ name = "httparse"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6dbf3de79e51f3d586ab4cb9d5c3e2c14aa28ed23d180cf89b4df0454a69cc87"
+
+[[package]]
+name = "hybrid-array"
+version = "0.4.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9155a582abd142abc056962c29e3ce5ff2ad5469f4246b537ed42c5deba857da"
+dependencies = [
+ "typenum",
+]
 
 [[package]]
 name = "hyper"
@@ -2818,6 +3371,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "inotify"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd5b3eaf1a28b758ac0faa5a4254e8ab2705605496f1b1f3fbbc3988ad73d199"
+dependencies = [
+ "bitflags 2.11.1",
+ "inotify-sys",
+ "libc",
+]
+
+[[package]]
 name = "inotify-sys"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3106,10 +3670,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "libhelio"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Helio?rev=f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d#f7e0a54b0e04ae9ca3f2f76dd3bbdb29185b8c9d"
+dependencies = [
+ "bytemuck",
+ "glam 0.33.0",
+ "wgpu",
+]
+
+[[package]]
 name = "libloading"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55"
+dependencies = [
+ "cfg-if",
+ "windows-link 0.2.1",
+]
+
+[[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
 dependencies = [
  "cfg-if",
  "windows-link 0.2.1",
@@ -3131,6 +3715,17 @@ dependencies = [
  "libc",
  "plain",
  "redox_syscall 0.8.0",
+]
+
+[[package]]
+name = "libsqlite3-sys"
+version = "0.30.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e99fb7a497b1e3339bc746195567ed8d3e24945ecd636e3619d20b9de9e9149"
+dependencies = [
+ "cc",
+ "pkg-config",
+ "vcpkg",
 ]
 
 [[package]]
@@ -3291,6 +3886,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lz4_flex"
+version = "0.11.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "373f5eceeeab7925e0c1098212f2fbc4d416adec9d35051a6ab251e824c1854a"
+dependencies = [
+ "twox-hash",
+]
+
+[[package]]
 name = "mac"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3446,6 +4050,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02bd0af71c67b473010cbbc60715ee815645a4dc942899111f494b4b737d6fda"
 dependencies = [
  "libc",
+ "log",
  "wasi",
  "windows-sys 0.61.2",
 ]
@@ -3589,13 +4194,40 @@ dependencies = [
  "crossbeam-channel",
  "filetime",
  "fsevent-sys",
- "inotify",
+ "inotify 0.9.6",
  "kqueue",
  "libc",
  "log",
  "mio 0.8.11",
  "walkdir",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "notify"
+version = "8.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d3d07927151ff8575b7087f245456e549fea62edf0ec4e565a5ee50c8402bc3"
+dependencies = [
+ "bitflags 2.11.1",
+ "fsevent-sys",
+ "inotify 0.11.1",
+ "kqueue",
+ "libc",
+ "log",
+ "mio 1.2.1",
+ "notify-types",
+ "walkdir",
+ "windows-sys 0.60.2",
+]
+
+[[package]]
+name = "notify-types"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42b8cfee0e339a0337359f3c88165702ac6e600dc01c0cc9579a92d62b08477a"
+dependencies = [
+ "bitflags 2.11.1",
 ]
 
 [[package]]
@@ -3729,7 +4361,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4e89ad9e3d7d297152b17d39ed92cd50ca8063a89a9fa569046d41568891eff"
 dependencies = [
  "bitflags 2.11.1",
- "block2",
+ "block2 0.5.1",
  "libc",
  "objc2 0.5.2",
  "objc2-core-data",
@@ -3757,7 +4389,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74dd3b56391c7a0596a295029734d3c1c5e7e510a4cb30245f8221ccea96b009"
 dependencies = [
  "bitflags 2.11.1",
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-core-location",
  "objc2-foundation 0.2.2",
@@ -3769,7 +4401,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5ff520e9c33812fd374d8deecef01d4a840e7b41862d849513de77e44aa4889"
 dependencies = [
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-foundation 0.2.2",
 ]
@@ -3781,7 +4413,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "617fbf49e071c178c0b24c080767db52958f716d9eabdf0890523aeae54773ef"
 dependencies = [
  "bitflags 2.11.1",
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-foundation 0.2.2",
 ]
@@ -3816,7 +4448,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55260963a527c99f1819c4f8e3b47fe04f9650694ef348ffd2227e8196d34c80"
 dependencies = [
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-foundation 0.2.2",
  "objc2-metal 0.2.2",
@@ -3828,7 +4460,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "000cfee34e683244f284252ee206a27953279d370e309649dc3ee317b37e5781"
 dependencies = [
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-contacts",
  "objc2-foundation 0.2.2",
@@ -3847,7 +4479,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee638a5da3799329310ad4cfa62fbf045d5f56e3ef5ba4149e7452dcf89d5a8"
 dependencies = [
  "bitflags 2.11.1",
- "block2",
+ "block2 0.5.1",
  "dispatch",
  "libc",
  "objc2 0.5.2",
@@ -3881,7 +4513,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1a1ae721c5e35be65f01a03b6d2ac13a54cb4fa70d8a5da293d7b0020261398"
 dependencies = [
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-app-kit 0.2.2",
  "objc2-foundation 0.2.2",
@@ -3894,7 +4526,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd0cba1276f6023976a406a14ffa85e1fdd19df6b0f737b063b95f6c8c7aadd6"
 dependencies = [
  "bitflags 2.11.1",
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-foundation 0.2.2",
 ]
@@ -3906,6 +4538,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0125f776a10d00af4152d74616409f0d4a2053a6f57fa5b7d6aa2854ac04794"
 dependencies = [
  "bitflags 2.11.1",
+ "block2 0.6.2",
  "objc2 0.6.4",
  "objc2-foundation 0.3.2",
 ]
@@ -3917,7 +4550,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e42bee7bff906b14b167da2bac5efe6b6a07e6f7c0a21a7308d40c960242dc7a"
 dependencies = [
  "bitflags 2.11.1",
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-foundation 0.2.2",
  "objc2-metal 0.2.2",
@@ -3953,7 +4586,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8bb46798b20cd6b91cbd113524c490f1686f4c4e8f49502431415f3512e2b6f"
 dependencies = [
  "bitflags 2.11.1",
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-cloud-kit",
  "objc2-core-data",
@@ -3973,7 +4606,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44fa5f9748dbfe1ca6c0b79ad20725a11eca7c2218bceb4b005cb1be26273bfe"
 dependencies = [
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-foundation 0.2.2",
 ]
@@ -3985,7 +4618,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76cfcbf642358e8689af64cee815d139339f3ed8ad05103ed5eaf73db8d84cb3"
 dependencies = [
  "bitflags 2.11.1",
- "block2",
+ "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-core-location",
  "objc2-foundation 0.2.2",
@@ -4250,11 +4883,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
-name = "plugin_matter"
+name = "plugin_editor_api"
 version = "0.1.0"
 dependencies = [
  "gpui-ce",
- "image",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tracing",
+ "ui",
+ "ui_types_common",
+ "window_manager",
+]
+
+[[package]]
+name = "plugin_manager"
+version = "0.1.0"
+dependencies = [
+ "gpui-ce",
+ "libloading 0.9.0",
+ "once_cell",
+ "plugin_editor_api",
+ "serde_json",
+ "sha2 0.11.0",
+ "tracing",
+ "ui",
+ "walkdir",
+]
+
+[[package]]
+name = "plugin_matter"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gpui-ce",
  "parking_lot",
  "pulsar_image_format",
  "rustc_version 0.4.1",
@@ -4263,6 +4925,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "ui",
+ "ui_common",
  "uuid",
  "wgpu",
 ]
@@ -4444,6 +5107,18 @@ dependencies = [
 
 [[package]]
 name = "profiling"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "crossbeam-channel",
+ "once_cell",
+ "parking_lot",
+ "rusqlite",
+ "serde",
+]
+
+[[package]]
+name = "profiling"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d595e54a326bc53c1c197b32d295e14b169e3cfeaa8dc82b529f947fba6bcf5"
@@ -4472,6 +5147,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "pulsar-config"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/PulsarConfig?rev=78a332cc59e82db5dc4d7b26c920b0ac7a703102#78a332cc59e82db5dc4d7b26c920b0ac7a703102"
+dependencies = [
+ "dashmap",
+ "dirs 5.0.1",
+ "parking_lot",
+ "toml 0.8.23",
+]
+
+[[package]]
+name = "pulsar_events"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "parking_lot",
+ "serde",
+ "tracing",
+]
+
+[[package]]
 name = "pulsar_image_format"
 version = "0.1.0"
 dependencies = [
@@ -4480,6 +5176,52 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "zip",
+]
+
+[[package]]
+name = "pulsar_reflection"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "glam 0.33.0",
+ "helio",
+ "inventory",
+ "once_cell",
+ "pulsar_reflection_derive",
+ "serde",
+ "serde_json",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "pulsar_reflection_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "pulsar_rendering"
+version = "0.1.0"
+dependencies = [
+ "engine_class_derive",
+ "glam 0.33.0",
+ "helio",
+ "pulsar_events",
+ "pulsar_reflection",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
+name = "pulsar_settings"
+version = "0.1.0"
+dependencies = [
+ "pulsar-config",
 ]
 
 [[package]]
@@ -4495,6 +5237,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f6d64c71eb498fe9eae14ce4ec935c555749aef511cca85b5568910d6e48001"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "quark"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Quark#8ed5c18ec1a02cf1b20ee34b9cec22b773dac136"
+dependencies = [
+ "quark-macros",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "quark-macros"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Quark#8ed5c18ec1a02cf1b20ee34b9cec22b773dac136"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -4672,7 +5433,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "paste",
- "profiling",
+ "profiling 1.0.18",
  "rand 0.9.4",
  "rand_chacha",
  "simd_helpers",
@@ -4945,6 +5706,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusqlite"
+version = "0.32.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7753b721174eb8ff87a9a0e799e2d7bc3749323e773db92e0984debb00019d6e"
+dependencies = [
+ "bitflags 2.11.1",
+ "fallible-iterator",
+ "fallible-streaming-iterator",
+ "hashlink",
+ "libsqlite3-sys",
+ "smallvec",
+]
+
+[[package]]
+name = "rust-discord-activity"
+version = "0.3.1"
+source = "git+https://github.com/Far-Beyond-Pulsar/Discord-RPC-RS?rev=2f07922277bc3632fd124e46d28008fc542367fc#2f07922277bc3632fd124e46d28008fc542367fc"
+dependencies = [
+ "byteorder",
+ "log",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "rust-embed"
 version = "8.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4976,7 +5763,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5bcdef0be6fe7f6fa333b1073c949729274b05f123a0ad7efcb8efd878e5c3b1"
 dependencies = [
  "globset",
- "sha2",
+ "sha2 0.10.9",
  "walkdir",
 ]
 
@@ -4989,8 +5776,21 @@ dependencies = [
  "globwalk",
  "once_cell",
  "regex",
- "rust-i18n-macro",
- "rust-i18n-support",
+ "rust-i18n-macro 3.1.5",
+ "rust-i18n-support 3.1.5",
+ "smallvec",
+]
+
+[[package]]
+name = "rust-i18n"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55691a65892c33ee2de49c15ea5600c6f4a70e8eeb8e6c3cd96d2a231d230c40"
+dependencies = [
+ "globwalk",
+ "regex",
+ "rust-i18n-macro 4.1.0",
+ "rust-i18n-support 4.1.0",
  "smallvec",
 ]
 
@@ -5004,7 +5804,23 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "rust-i18n-support",
+ "rust-i18n-support 3.1.5",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "syn",
+]
+
+[[package]]
+name = "rust-i18n-macro"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30de488acadcf767d97cd48518a8da8ea9777b1c9a5beca4eab78bbf77d07309"
+dependencies = [
+ "glob",
+ "proc-macro2",
+ "quote",
+ "rust-i18n-support 4.1.0",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5030,7 +5846,26 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "siphasher",
- "toml",
+ "toml 0.8.23",
+ "triomphe",
+]
+
+[[package]]
+name = "rust-i18n-support"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aea0fef8a93c06326b66392c95a115120e609674cb2132d37d276a6b05b545b4"
+dependencies = [
+ "arc-swap",
+ "base62",
+ "globwalk",
+ "itertools 0.11.0",
+ "normpath",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "siphasher",
+ "toml 0.8.23",
  "triomphe",
 ]
 
@@ -5096,6 +5931,7 @@ version = "0.23.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef86cd5876211988985292b91c96a8f2d298df24e75989a43a3c73f2d4d8168b"
 dependencies = [
+ "log",
  "once_cell",
  "ring",
  "rustls-pki-types",
@@ -5409,6 +6245,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
+dependencies = [
+ "serde_core",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5447,7 +6292,18 @@ checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.2.17",
- "digest",
+ "digest 0.10.7",
+]
+
+[[package]]
+name = "sha2"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.3.0",
+ "digest 0.11.3",
 ]
 
 [[package]]
@@ -5636,6 +6492,59 @@ checksum = "52d1cfed4120b4d927bf7c0f86d2087a4a7d6027c906d9f9d525a80573b9be51"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "solid-fbx"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Solid3D?rev=c070e8ccb0324dbb0a0a5d11abd6c72f00afe291#c070e8ccb0324dbb0a0a5d11abd6c72f00afe291"
+dependencies = [
+ "flate2",
+ "glam 0.27.0",
+ "solid-rs",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "solid-gltf"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Solid3D?rev=c070e8ccb0324dbb0a0a5d11abd6c72f00afe291#c070e8ccb0324dbb0a0a5d11abd6c72f00afe291"
+dependencies = [
+ "base64",
+ "glam 0.27.0",
+ "serde",
+ "serde_json",
+ "solid-rs",
+]
+
+[[package]]
+name = "solid-obj"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Solid3D?rev=c070e8ccb0324dbb0a0a5d11abd6c72f00afe291#c070e8ccb0324dbb0a0a5d11abd6c72f00afe291"
+dependencies = [
+ "glam 0.27.0",
+ "solid-rs",
+]
+
+[[package]]
+name = "solid-rs"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Solid3D?rev=c070e8ccb0324dbb0a0a5d11abd6c72f00afe291#c070e8ccb0324dbb0a0a5d11abd6c72f00afe291"
+dependencies = [
+ "glam 0.27.0",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "solid-usd"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/Solid3D?rev=c070e8ccb0324dbb0a0a5d11abd6c72f00afe291#c070e8ccb0324dbb0a0a5d11abd6c72f00afe291"
+dependencies = [
+ "glam 0.27.0",
+ "lz4_flex",
+ "solid-rs",
+ "thiserror 2.0.18",
+ "zip",
 ]
 
 [[package]]
@@ -6248,9 +7157,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc1beb996b9d83529a9e75c17a1686767d148d70663143c7854d8b4a09ced362"
 dependencies = [
  "serde",
- "serde_spanned",
+ "serde_spanned 0.6.9",
  "toml_datetime 0.6.11",
  "toml_edit 0.22.27",
+]
+
+[[package]]
+name = "toml"
+version = "1.1.2+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81f3d15e84cbcd896376e6730314d59fb5a87f31e4b038454184435cd57defee"
+dependencies = [
+ "indexmap",
+ "serde_core",
+ "serde_spanned 1.1.1",
+ "toml_datetime 1.1.1+spec-1.1.0",
+ "toml_parser",
+ "toml_writer",
+ "winnow 1.0.3",
 ]
 
 [[package]]
@@ -6279,7 +7203,7 @@ checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
 dependencies = [
  "indexmap",
  "serde",
- "serde_spanned",
+ "serde_spanned 0.6.9",
  "toml_datetime 0.6.11",
  "toml_write",
  "winnow 0.7.15",
@@ -6311,6 +7235,35 @@ name = "toml_write"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
+
+[[package]]
+name = "toml_writer"
+version = "1.1.1+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "756daf9b1013ebe47a8776667b466417e2d4c5679d441c26230efd9ef78692db"
+
+[[package]]
+name = "tool_registry"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/ToolbeltRS?rev=116b9028bad6b9467073de2534be60ef4df9b279#116b9028bad6b9467073de2534be60ef4df9b279"
+dependencies = [
+ "anyhow",
+ "inventory",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
+name = "tool_registry_macros"
+version = "0.1.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/ToolbeltRS?rev=116b9028bad6b9467073de2534be60ef4df9b279#116b9028bad6b9467073de2534be60ef4df9b279"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_json",
+ "syn",
+]
 
 [[package]]
 name = "tower"
@@ -6427,6 +7380,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "twox-hash"
+version = "2.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ea3136b675547379c4bd395ca6b938e5ad3c3d20fad76e7fe85f9e0d011419c"
+
+[[package]]
+name = "type_db"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "plugin_editor_api",
+ "ui_types_common",
+]
+
+[[package]]
 name = "typeid"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6452,7 +7420,7 @@ dependencies = [
  "anyhow",
  "base64",
  "chrono",
- "directories",
+ "directories 5.0.1",
  "enum-iterator",
  "gpui-ce",
  "gpui_sum_tree",
@@ -6466,7 +7434,7 @@ dependencies = [
  "markup5ever_rcdom",
  "mathjax-svg-rs",
  "mermaid-rs-renderer",
- "notify",
+ "notify 6.1.1",
  "num-traits",
  "once_cell",
  "open",
@@ -6476,14 +7444,14 @@ dependencies = [
  "resvg",
  "ropey",
  "rust-embed",
- "rust-i18n",
+ "rust-i18n 3.1.5",
  "schemars",
  "serde",
  "serde_json",
  "serde_repr",
  "smallvec",
  "smol",
- "toml",
+ "toml 0.8.23",
  "tracing",
  "tree-sitter",
  "tree-sitter-json",
@@ -6500,6 +7468,42 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "ui_common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "engine_fs",
+ "engine_state",
+ "gpui-ce",
+ "image",
+ "parking_lot",
+ "plugin_editor_api",
+ "pulsar_reflection",
+ "pulsar_rendering",
+ "rust-i18n 4.1.0",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "smol",
+ "tracing",
+ "ui",
+ "window_manager",
+]
+
+[[package]]
+name = "ui_types_common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "lazy_static",
+ "regex",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -6593,6 +7597,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
+name = "ureq"
+version = "3.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dea7109cdcd5864d4eeb1b58a1648dc9bf520360d7af16ec26d0a9354bafcfc0"
+dependencies = [
+ "base64",
+ "cookie_store",
+ "flate2",
+ "log",
+ "percent-encoding",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "ureq-proto",
+ "utf8-zero",
+ "webpki-roots",
+]
+
+[[package]]
+name = "ureq-proto"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e994ba84b0bd1b1b0cf92878b7ef898a5c1760108fe7b6010327e274917a808c"
+dependencies = [
+ "base64",
+ "http",
+ "httparse",
+ "log",
+]
+
+[[package]]
 name = "url"
 version = "2.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6603,6 +7639,12 @@ dependencies = [
  "percent-encoding",
  "serde",
 ]
+
+[[package]]
+name = "urlencoding"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 
 [[package]]
 name = "usvg"
@@ -6643,6 +7685,12 @@ name = "utf16_iter"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8232dd3cdaed5356e0f716d285e4b40b932ac434100fe9b7e0e8e935b9e6246"
+
+[[package]]
+name = "utf8-zero"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8c0a043c9540bae7c578c88f91dda8bd82e59ae27c21baca69c8b191aaf5a6e"
 
 [[package]]
 name = "utf8_iter"
@@ -6709,6 +7757,12 @@ dependencies = [
  "sval_ref",
  "sval_serde",
 ]
+
+[[package]]
+name = "vcpkg"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "version_check"
@@ -7009,6 +8063,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "webpki-roots"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52f5ee44c96cf55f1b349600768e3ece3a8f26010c05265ab73f945bb1a2eb9d"
+dependencies = [
+ "rustls-pki-types",
+]
+
+[[package]]
 name = "weezl"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7030,7 +8093,7 @@ dependencies = [
  "log",
  "naga",
  "portable-atomic",
- "profiling",
+ "profiling 1.0.18",
  "raw-window-handle",
  "smallvec",
  "static_assertions",
@@ -7061,14 +8124,23 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "portable-atomic",
- "profiling",
+ "profiling 1.0.18",
  "raw-window-handle",
  "rustc-hash 1.1.0",
  "smallvec",
  "thiserror 2.0.18",
+ "wgpu-core-deps-apple",
  "wgpu-core-deps-windows-linux-android",
  "wgpu-hal",
  "wgpu-types",
+]
+
+[[package]]
+name = "wgpu-core-deps-apple"
+version = "28.0.0"
+source = "git+https://github.com/Far-Beyond-Pulsar/wgpu?rev=fce5b80e8017304449124b12637ec324417e40c8#fce5b80e8017304449124b12637ec324417e40c8"
+dependencies = [
+ "wgpu-hal",
 ]
 
 [[package]]
@@ -7089,6 +8161,7 @@ dependencies = [
  "ash",
  "bit-set",
  "bitflags 2.11.1",
+ "block2 0.6.2",
  "bytemuck",
  "cfg-if",
  "cfg_aliases",
@@ -7096,15 +8169,20 @@ dependencies = [
  "gpu-descriptor",
  "hashbrown 0.16.1",
  "libc",
- "libloading",
+ "libloading 0.8.9",
  "log",
  "naga",
+ "objc2 0.6.4",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
+ "objc2-metal 0.3.2",
+ "objc2-quartz-core 0.3.2",
  "once_cell",
  "ordered-float",
  "parking_lot",
  "portable-atomic",
  "portable-atomic-util",
- "profiling",
+ "profiling 1.0.18",
  "range-alloc",
  "raw-window-handle",
  "raw-window-metal",
@@ -7171,6 +8249,20 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "window_manager"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dashmap",
+ "gpui-ce",
+ "parking_lot",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+ "ui_types_common",
+]
 
 [[package]]
 name = "windows"
@@ -7631,7 +8723,7 @@ dependencies = [
  "android-activity",
  "atomic-waker",
  "bitflags 2.11.1",
- "block2",
+ "block2 0.5.1",
  "bytemuck",
  "calloop",
  "cfg_aliases",
@@ -7842,7 +8934,7 @@ dependencies = [
  "as-raw-xcb-connection",
  "gethostname",
  "libc",
- "libloading",
+ "libloading 0.8.9",
  "once_cell",
  "rustix 1.1.4",
  "x11rb-protocol",

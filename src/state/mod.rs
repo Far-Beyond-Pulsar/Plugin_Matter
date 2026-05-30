@@ -1,10 +1,10 @@
 //! State management for the Matter editor
 
-mod commands;
-mod document;
-mod viewport;
-mod tool_state;
-mod history;
+pub mod commands;
+pub mod document;
+pub mod viewport;
+pub mod tool_state;
+pub mod history;
 
 pub use commands::*;
 pub use document::Document;

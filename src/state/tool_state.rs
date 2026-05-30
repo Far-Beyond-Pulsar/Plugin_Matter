@@ -6,8 +6,8 @@ use gpui::Rgba;
 pub enum ActiveTool {
     Paint,
     Erase,
-    Eyedropper,
     Fill,
+    Eyedropper,
     Pan,
 }
 
