@@ -15,7 +15,7 @@ ui = { path = "../WGPUI-Component/crates/ui" }
 ui_common = { path = "../Pulsar-Native/ui-crates/ui_common" }
 
 # PIF Image Format
-pulsar_image_format = { path = "../PIF-rs" }
+pulsar_image_format = { git = "https://github.com/Far-Beyond-Pulsar/PIF-rs", rev = "c2cd8c4dfc49e12bebd76812308a7dda1f851452" }
 
 # Graphics
 wgpu = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", rev = "fce5b80e8017304449124b12637ec324417e40c8", default-features = false, features = ["dx12", "vulkan", "wgsl", "metal"] }
