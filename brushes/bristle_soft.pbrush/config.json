@@ -1,0 +1,10 @@
+{
+  "name": "Bristle Soft",
+  "description": "Six parallel bristle strands with soft tapered tips — like a flat fan brush.",
+  "mask_file": "mask.svg",
+  "shape": "bristle",
+  "spacing": 0.10,
+  "hardness": 0.7,
+  "default_size": 24.0,
+  "default_opacity": 0.9
+}

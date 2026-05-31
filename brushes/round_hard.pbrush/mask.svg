@@ -1,0 +1,15 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Round Hard brush mask.
+    Nearly uniform full-intensity disc that drops off only at the very edge.
+  -->
+  <defs>
+    <radialGradient id="g" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="white"/>
+      <stop offset="82%"  stop-color="white"/>
+      <stop offset="93%"  stop-color="#909090"/>
+      <stop offset="100%" stop-color="black"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="32" fill="url(#g)"/>
+</svg>

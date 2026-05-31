@@ -1,21 +1,30 @@
-//! Standalone test of Matter editor panel
+//! Standalone test of the Matter editor panel.
+
+use std::sync::Arc;
 
 use gpui::*;
-use plugin_matter::{MatterEditorPanel, state::Document};
-use ui::{color_picker::ColorPickerState, Assets, Root, Theme, ThemeMode};
+use plugin_matter::{
+    brush_engine::{BrushRegistry, BrushDropdownItem},
+    MatterEditorPanel,
+    state::Document,
+};
+use ui::{color_picker::ColorPickerState, dropdown::DropdownState, Assets, IndexPath, Root, Theme, ThemeMode};
 
 fn main() {
     Application::new().with_assets(Assets).run(|cx: &mut App| {
-        // 1. Initialise component registry (buttons, inputs, color pickers, …)
+        // 1. Initialise component registry (buttons, inputs, colour pickers, …)
         ui::init(cx);
-        // 2. Load themes from disk + apply saved/default theme.
-        //    Same two-step sequence the engine uses; ensures icon fonts and
-        //    palette resources are fully registered before any window opens.
+        // 2. Load themes and apply dark mode.
         ui::themes::init(cx);
-        // 3. Force dark mode regardless of system appearance.
         Theme::change(ThemeMode::Dark, None, cx);
 
-        let document = Document::new(1024, 768).expect("Failed to create document");
+        let document = Document::new(2048, 2048).expect("failed to create document");
+
+        // Discover brushes relative to the working directory (PROJ_ROOT/brushes/).
+        let brushes_dir = std::env::current_dir()
+            .unwrap_or_default()
+            .join("brushes");
+        let brush_registry = Arc::new(BrushRegistry::load_from_dir(&brushes_dir));
 
         cx.open_window(
             WindowOptions {
@@ -30,7 +39,8 @@ fn main() {
                 ..Default::default()
             },
             move |window, cx| {
-                // ColorPickerState::new requires a Window — construct here.
+                // Entities that require a Window are constructed here.
+
                 let fg = cx.new(|cx| {
                     ColorPickerState::new(window, cx)
                         .default_value(Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }.into())
@@ -40,14 +50,29 @@ fn main() {
                         .default_value(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }.into())
                 });
 
-                let panel = cx.new(|cx| MatterEditorPanel::new(document, fg, bg, cx));
+                // Build the dropdown items and pre-select the first brush.
+                let items: Vec<BrushDropdownItem> = brush_registry.dropdown_items();
+                let initial = if items.is_empty() { None } else { Some(IndexPath::default().row(0)) };
 
-                // ColorPicker (and any other ui:: component that opens popups,
-                // modals, or notifications) requires the window root to be
-                // ui::Root — the same wrapper the engine uses via PulsarRoot.
+                let brush_dropdown = cx.new(|cx| {
+                    DropdownState::new(items, initial, window, cx)
+                });
+
+                let panel = cx.new(|cx| {
+                    MatterEditorPanel::new(
+                        document,
+                        fg,
+                        bg,
+                        brush_dropdown,
+                        brush_registry.clone(),
+                        cx,
+                    )
+                });
+
+                // ui::Root is required for popups/modals opened by ui:: components.
                 cx.new(|cx| Root::new(panel.into(), window, cx))
             },
         )
-        .expect("Failed to open window");
+        .expect("failed to open window");
     });
 }

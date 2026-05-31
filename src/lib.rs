@@ -9,6 +9,7 @@ pub mod state;
 mod canvas;
 mod tools;
 mod ui;
+pub mod brush_engine;
 
 pub use plugin::MatterPlugin;
 pub use panel::MatterEditorPanel;

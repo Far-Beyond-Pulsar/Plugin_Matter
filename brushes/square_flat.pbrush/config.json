@@ -1,0 +1,10 @@
+{
+  "name": "Square Flat",
+  "description": "Flat square stamp — full coverage across the entire brush footprint.",
+  "mask_file": "mask.svg",
+  "shape": "square",
+  "spacing": 0.15,
+  "hardness": 1.0,
+  "default_size": 20.0,
+  "default_opacity": 1.0
+}

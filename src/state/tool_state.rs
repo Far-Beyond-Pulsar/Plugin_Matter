@@ -15,6 +15,8 @@ pub enum ActiveTool {
 #[derive(Clone, Debug)]
 pub struct ToolState {
     pub active_tool: ActiveTool,
+    /// Stable id of the selected brush (matches a `BrushEntry::id` in the registry).
+    pub active_brush_id: String,
     pub brush_size: f32,
     pub brush_opacity: f32,
     pub foreground_color: Rgba,
@@ -46,9 +48,10 @@ impl ToolState {
 impl Default for ToolState {
     fn default() -> Self {
         Self {
-            active_tool: ActiveTool::Paint,
-            brush_size: 20.0,
-            brush_opacity: 1.0,
+            active_tool:     ActiveTool::Paint,
+            active_brush_id: "round_soft".to_string(),
+            brush_size:      20.0,
+            brush_opacity:   1.0,
             foreground_color: Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
             background_color: Rgba { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
         }

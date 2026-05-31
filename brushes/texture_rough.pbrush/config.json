@@ -1,0 +1,10 @@
+{
+  "name": "Texture Rough",
+  "description": "Rough, gritty stamp built from overlapping circles — emulates natural media texture.",
+  "mask_file": "mask.svg",
+  "shape": "circle",
+  "spacing": 0.30,
+  "hardness": 0.6,
+  "default_size": 30.0,
+  "default_opacity": 0.85
+}

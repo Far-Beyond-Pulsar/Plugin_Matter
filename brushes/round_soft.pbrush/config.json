@@ -1,0 +1,10 @@
+{
+  "name": "Round Soft",
+  "description": "Soft airbrush-style round stamp with Gaussian-like radial falloff.",
+  "mask_file": "mask.svg",
+  "shape": "circle",
+  "spacing": 0.20,
+  "hardness": 0.4,
+  "default_size": 20.0,
+  "default_opacity": 1.0
+}

@@ -1,0 +1,8 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Square Flat brush mask.
+    Full white square — every pixel inside the stamp has maximum intensity.
+    Good for painting sharp-cornered strokes.
+  -->
+  <rect width="64" height="64" fill="white"/>
+</svg>

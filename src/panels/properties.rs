@@ -1,17 +1,25 @@
-//! Properties panel — brush settings and color pickers.
+//! Properties panel — brush picker, colour pickers, and brush settings.
 
 use gpui::*;
-use ui::{color_picker::ColorPicker, Theme};
+use ui::{
+    color_picker::ColorPicker,
+    dropdown::{Dropdown, DropdownState},
+    slider::{Slider, SliderState},
+    Theme,
+};
 
+use crate::brush_engine::BrushDropdownItem;
 use crate::state::Document;
 
 pub fn render_properties_panel(
-    doc:       &Document,
-    fg_picker: &Entity<ui::color_picker::ColorPickerState>,
-    bg_picker: &Entity<ui::color_picker::ColorPickerState>,
-    theme:     &Theme,
+    doc:            &Document,
+    fg_picker:      &Entity<ui::color_picker::ColorPickerState>,
+    bg_picker:      &Entity<ui::color_picker::ColorPickerState>,
+    brush_dropdown: &Entity<DropdownState<Vec<BrushDropdownItem>>>,
+    brush_size:     &Entity<SliderState>,
+    theme:          &Theme,
 ) -> impl IntoElement {
-    let brush_size    = doc.tool_state.brush_size;
+    let size_val  = doc.tool_state.brush_size;
     let brush_opacity = doc.tool_state.brush_opacity;
 
     div()
@@ -96,7 +104,7 @@ pub fn render_properties_panel(
                         )
                 )
         )
-        // ── Brush section ──────────────────────────────────────────────────
+        // ── Brush picker ───────────────────────────────────────────────────
         .child(
             div()
                 .flex()
@@ -113,10 +121,41 @@ pub fn render_properties_panel(
                         .text_color(theme.foreground.opacity(0.7))
                         .child("BRUSH")
                 )
+                // Dropdown — lists all loaded brushes with shape thumbnails.
                 .child(
-                    div().text_xs().text_color(theme.foreground.opacity(0.6))
-                         .child(format!("Size: {:.0}px", brush_size))
+                    Dropdown::new(brush_dropdown)
+                        .placeholder("Select brush…")
+                        .menu_width(px(220.0))
                 )
+        )
+        // ── Brush size slider ──────────────────────────────────────────────
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .w_full()
+                .px_3()
+                .pb_3()
+                .gap_2()
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(theme.foreground.opacity(0.6))
+                                .child("Size")
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(theme.foreground.opacity(0.5))
+                                .child(format!("{:.0}px", size_val))
+                        )
+                )
+                .child(Slider::new(brush_size).horizontal())
                 .child(
                     div().text_xs().text_color(theme.foreground.opacity(0.6))
                          .child(format!("Opacity: {:.0}%", brush_opacity * 100.0))

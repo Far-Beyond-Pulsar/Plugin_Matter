@@ -12,13 +12,18 @@ gpui = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI", rev = "53872e17a0e2
 
 # UI Components
 ui = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI-Component", rev = "9dcd9b0874e81bf032b368dc36bc66cca779306f" }
-ui_common = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "634e1206e488bd6ef2a69d7eb1d948e5bafb9c44" }
 
 # PIF Image Format
 pulsar_image_format = { git = "https://github.com/Far-Beyond-Pulsar/PIF-rs", rev = "c2cd8c4dfc49e12bebd76812308a7dda1f851452" }
 
 # Graphics
 wgpu = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", rev = "fce5b80e8017304449124b12637ec324417e40c8", default-features = false, features = ["dx12", "vulkan", "wgsl", "metal"] }
+
+# Image decoding (PNG brush masks) — version pinned to match existing lock file
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
+
+# SVG rasterisation for brush masks — version pinned to match existing lock file
+resvg = "=0.47.0"
 
 # Utilities
 anyhow = "1.0"

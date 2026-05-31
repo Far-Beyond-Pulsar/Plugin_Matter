@@ -1,0 +1,10 @@
+{
+  "name": "Round Hard",
+  "description": "Hard-edged round stamp — uniform coverage with a thin antialiased edge.",
+  "mask_file": "mask.svg",
+  "shape": "circle",
+  "spacing": 0.15,
+  "hardness": 1.0,
+  "default_size": 20.0,
+  "default_opacity": 1.0
+}

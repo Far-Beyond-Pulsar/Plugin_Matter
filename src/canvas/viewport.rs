@@ -3,7 +3,7 @@
 //! the Pulsar level editor.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -11,8 +11,8 @@ use gpui::*;
 use parking_lot::RwLock;
 use ui::ActiveTheme;
 
+use crate::brush_engine::{composite_wet_erase, composite_wet_over_base, stamp_into_wet, BrushMask, BrushRegistry};
 use crate::state::{ActiveTool, Document, commands::PaintStrokeCommand};
-use crate::canvas::stroke::render_brush_stamp;
 use super::renderer::{CanvasRenderer, CanvasRenderInput};
 
 const SURFACE_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -22,27 +22,50 @@ const TILE_SIZE:   u32 = 256;
 
 // ── Active stroke state ───────────────────────────────────────────────────────
 
+/// Number of recent positions kept for direction averaging.
+/// A longer window gives more stable rotation at the cost of a small lag.
+const DIR_WINDOW: usize = 12;
+
 struct ActiveStroke {
-    color:        [u8; 4],
-    brush_size:   f32,
+    color:         [u8; 4],
+    brush_size:    f32,
     brush_opacity: f32,
-    is_eraser:    bool,
-    layer_id:     String,
-    /// Tile snapshots taken *before* this stroke touched each tile.
-    tiles_before: HashMap<(String, u32, u32), Vec<u8>>,
-    /// Current state of every tile that has been modified.
+    is_eraser:     bool,
+    layer_id:      String,
+    /// Brush mask locked in at stroke start.
+    brush_mask:    Arc<BrushMask>,
+
+    // ── Direction tracking ────────────────────────────────────────────────────
+    /// Smoothed stroke-direction unit vector (cos θ, sin θ).
+    /// Stored as a vector — not an angle — to avoid wrap-around at ±π.
+    dir_x:      f32,
+    dir_y:      f32,
+    /// Ring buffer of recent canvas-space positions used to compute a stable
+    /// windowed direction rather than a noisy per-sample delta.
+    pos_buffer: VecDeque<Point<f32>>,
+
+    // ── Wet-buffer model ──────────────────────────────────────────────────────
+    /// Snapshot of each tile *before* this stroke began.  Never modified.
+    tiles_before:  HashMap<(String, u32, u32), Vec<u8>>,
+    /// Accumulated paint for this stroke only.  Alpha capped at brush_opacity.
+    /// Paint: stamped into here; erase: erase-mask stamped into here.
+    wet_tiles:     HashMap<(String, u32, u32), Vec<u8>>,
+    /// Composited result (tiles_before + wet_tiles).  This is what gets
+    /// written to PIF and shown as live tile data during the stroke.
     tiles_current: HashMap<(String, u32, u32), Vec<u8>>,
+
     /// Last canvas-space point stamped (for interpolation).
-    last_pos:     Option<Point<f32>>,
+    last_pos: Option<Point<f32>>,
 }
 
 // ── CanvasViewport entity ─────────────────────────────────────────────────────
 
 pub struct CanvasViewport {
-    focus_handle:  FocusHandle,
-    document:      Arc<RwLock<Document>>,
-    renderer:      Arc<Mutex<CanvasRenderer>>,
-    surface:       Option<WgpuSurfaceHandle>,
+    focus_handle:    FocusHandle,
+    document:        Arc<RwLock<Document>>,
+    brush_registry:  Arc<BrushRegistry>,
+    renderer:        Arc<Mutex<CanvasRenderer>>,
+    surface:         Option<WgpuSurfaceHandle>,
 
     /// Canvas origin in element-local pixels (pan offset).
     pan:  Point<f32>,
@@ -60,6 +83,13 @@ pub struct CanvasViewport {
     // Active stroke (Paint/Erase)
     active_stroke: Option<ActiveStroke>,
 
+    /// Last confirmed stroke direction (unit vector).
+    /// Persists between strokes so the first stamp of a new stroke continues
+    /// in the same orientation rather than defaulting to an arbitrary angle —
+    /// matches the behaviour of Photoshop, Procreate, and Clip Studio Paint.
+    last_dir_x: f32,
+    last_dir_y: f32,
+
     // Raw window-space cursor position
     cursor_win: Option<Point<f32>>,
 
@@ -71,14 +101,21 @@ pub struct CanvasViewport {
 }
 
 impl CanvasViewport {
-    pub fn new(document: Arc<RwLock<Document>>, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        document:       Arc<RwLock<Document>>,
+        brush_registry: Arc<BrushRegistry>,
+        cx:             &mut Context<Self>,
+    ) -> Self {
         Self {
-            focus_handle:  cx.focus_handle(),
+            focus_handle:    cx.focus_handle(),
             document,
-            renderer:      Arc::new(Mutex::new(CanvasRenderer::new())),
-            surface:       None,
+            brush_registry,
+            renderer:        Arc::new(Mutex::new(CanvasRenderer::new())),
+            surface:         None,
             pan:           Point::new(32.0, 32.0),
             zoom:          1.0,
+            last_dir_x: 1.0,
+            last_dir_y: 0.0,
             is_panning:            false,
             pan_win_start:         None,
             pan_offset_at_start:   Point::default(),
@@ -112,39 +149,45 @@ impl CanvasViewport {
 
     // ── Drawing helpers ───────────────────────────────────────────────────────
 
-    /// Ensure a tile is loaded into `tiles_current` and snapshot it into
-    /// `tiles_before` the first time it is touched.
+    /// Ensure a tile is initialised in all three buffers (before / wet / current).
     fn ensure_tile(
-        layer_id: &str,
+        layer_id:      &str,
         tx: u32, ty: u32,
-        doc: &Document,
-        tiles_before: &mut HashMap<(String, u32, u32), Vec<u8>>,
+        doc:           &Document,
+        tiles_before:  &mut HashMap<(String, u32, u32), Vec<u8>>,
+        wet_tiles:     &mut HashMap<(String, u32, u32), Vec<u8>>,
         tiles_current: &mut HashMap<(String, u32, u32), Vec<u8>>,
     ) {
         let key = (layer_id.to_string(), tx, ty);
-        if tiles_current.contains_key(&key) { return; }
+        if tiles_before.contains_key(&key) { return; }
 
-        let data = doc.load_tile(layer_id, tx, ty).unwrap_or_default();
-        let data = if data.is_empty() {
+        let raw = doc.load_tile(layer_id, tx, ty).unwrap_or_default();
+        let base = if raw.is_empty() {
             vec![0u8; (TILE_SIZE * TILE_SIZE * 4) as usize]
         } else {
-            data
+            raw
         };
-        tiles_before.insert(key.clone(), data.clone());
-        tiles_current.insert(key, data);
+        wet_tiles.insert(key.clone(), vec![0u8; (TILE_SIZE * TILE_SIZE * 4) as usize]);
+        tiles_current.insert(key.clone(), base.clone());
+        tiles_before.insert(key, base);
     }
 
-    /// Stamp one brush circle at `canvas_pos` into live tile buffers.
+    /// Stamp at `canvas_pos`, using the stroke's current smoothed direction.
+    ///
+    /// Paint is accumulated in the **wet buffer**; `tiles_current` is then
+    /// rebuilt from `tiles_before + wet` so the opacity cap is always honoured
+    /// regardless of how many stamps overlap the same pixel.
     fn stamp_at(
-        stroke: &mut ActiveStroke,
+        stroke:     &mut ActiveStroke,
         canvas_pos: Point<f32>,
-        doc: &Document,
+        doc:        &Document,
     ) {
+        let angle  = stroke.dir_y.atan2(stroke.dir_x);
         let radius = stroke.brush_size * 0.5;
-        let min_x = (canvas_pos.x - radius).floor().max(0.0) as u32;
-        let min_y = (canvas_pos.y - radius).floor().max(0.0) as u32;
-        let max_x = (canvas_pos.x + radius).ceil() as u32;
-        let max_y = (canvas_pos.y + radius).ceil() as u32;
+        let min_x  = (canvas_pos.x - radius).floor().max(0.0) as u32;
+        let min_y  = (canvas_pos.y - radius).floor().max(0.0) as u32;
+        let max_x  = (canvas_pos.x + radius).ceil() as u32;
+        let max_y  = (canvas_pos.y + radius).ceil() as u32;
 
         let min_tx = min_x / TILE_SIZE;
         let max_tx = max_x / TILE_SIZE;
@@ -156,26 +199,49 @@ impl CanvasViewport {
                 Self::ensure_tile(
                     &stroke.layer_id, tx, ty, doc,
                     &mut stroke.tiles_before,
+                    &mut stroke.wet_tiles,
                     &mut stroke.tiles_current,
                 );
                 let key = (stroke.layer_id.clone(), tx, ty);
-                if let Some(tile) = stroke.tiles_current.get_mut(&key) {
-                    render_brush_stamp(
-                        tile,
+
+                // 1. Stamp into the wet buffer.
+                if let Some(wet) = stroke.wet_tiles.get_mut(&key) {
+                    stamp_into_wet(
+                        wet,
+                        &stroke.brush_mask,
                         canvas_pos,
                         stroke.brush_size,
+                        angle,
+                        stroke.brush_opacity, // flow == opacity for now (1:1)
                         stroke.brush_opacity,
                         stroke.color,
                         tx * TILE_SIZE,
                         ty * TILE_SIZE,
-                        stroke.is_eraser,
                     );
+                }
+
+                // 2. Rebuild tiles_current from before + wet.
+                let before = stroke.tiles_before.get(&key);
+                let wet    = stroke.wet_tiles.get(&key);
+                if let (Some(b), Some(w)) = (before, wet) {
+                    if let Some(cur) = stroke.tiles_current.get_mut(&key) {
+                        if stroke.is_eraser {
+                            composite_wet_erase(cur, b, w);
+                        } else {
+                            composite_wet_over_base(cur, b, w);
+                        }
+                    }
                 }
             }
         }
     }
 
-    /// Interpolate between `from` and `to`, stamping every `step` pixels.
+    /// Interpolate stamps from `from` to `to`, updating the windowed direction.
+    ///
+    /// Direction is derived from a **sliding window** of the last [`DIR_WINDOW`]
+    /// positions (oldest→newest trend), then lightly smoothed with a low-α EMA.
+    /// This is far more stable than per-sample deltas — it matches the approach
+    /// used internally by Photoshop's brush engine.
     fn stamp_segment(
         stroke: &mut ActiveStroke,
         from:   Point<f32>,
@@ -185,11 +251,39 @@ impl CanvasViewport {
         let dx   = to.x - from.x;
         let dy   = to.y - from.y;
         let dist = (dx * dx + dy * dy).sqrt();
-        let step = (stroke.brush_size * 0.2).max(1.0);
+
+        // Add the new position to the ring buffer.
+        if stroke.pos_buffer.len() >= DIR_WINDOW {
+            stroke.pos_buffer.pop_front();
+        }
+        stroke.pos_buffer.push_back(to);
+
+        // Compute direction from the oldest to the newest sample in the window.
+        // Using the full window trend (not just the last delta) means a straight
+        // line stays straight even if individual input samples are jittery.
+        const MIN_MOVE: f32 = 1.0; // canvas pixels — below this, keep last dir
+        if stroke.pos_buffer.len() >= 2 && dist >= MIN_MOVE {
+            let oldest = *stroke.pos_buffer.front().unwrap();
+            let newest = *stroke.pos_buffer.back().unwrap();
+            let tdx = newest.x - oldest.x;
+            let tdy = newest.y - oldest.y;
+            let tlen = (tdx * tdx + tdy * tdy).sqrt();
+            if tlen > 0.1 {
+                let nx = tdx / tlen;
+                let ny = tdy / tlen;
+                // Light EMA on top of the windowed trend — keeps transitions
+                // smooth without introducing perceptible lag.
+                const ALPHA: f32 = 0.20;
+                stroke.dir_x += (nx - stroke.dir_x) * ALPHA;
+                stroke.dir_y += (ny - stroke.dir_y) * ALPHA;
+            }
+        }
+
+        let step  = (stroke.brush_size * 0.20).max(1.0);
         let steps = (dist / step).ceil() as u32;
 
         for i in 1..=steps.max(1) {
-            let t = i as f32 / steps.max(1) as f32;
+            let t  = i as f32 / steps.max(1) as f32;
             let pt = Point::new(from.x + dx * t, from.y + dy * t);
             Self::stamp_at(stroke, pt, doc);
         }
@@ -208,13 +302,26 @@ impl CanvasViewport {
             _ => (color, false),
         };
 
+        // Lock the active brush mask for the duration of this stroke.
+        let brush_mask = self.brush_registry
+            .get(&doc.tool_state.active_brush_id)
+            .map(|e| e.mask.clone())
+            .unwrap_or_else(|| Arc::new(BrushMask::default_round()));
+
         let mut stroke = ActiveStroke {
             color,
             brush_size:    doc.tool_state.brush_size,
             brush_opacity: doc.tool_state.brush_opacity,
             is_eraser,
             layer_id,
+            brush_mask,
+            // Inherit last stroke's direction — first stamp of a new stroke
+            // stays oriented correctly rather than snapping to a fixed default.
+            dir_x: self.last_dir_x,
+            dir_y: self.last_dir_y,
+            pos_buffer:    VecDeque::with_capacity(DIR_WINDOW),
             tiles_before:  HashMap::new(),
+            wet_tiles:     HashMap::new(),
             tiles_current: HashMap::new(),
             last_pos:      Some(canvas_pos),
         };
@@ -232,9 +339,15 @@ impl CanvasViewport {
         }
     }
 
-    /// Finish the stroke: commit to PIF and push undo entry.
+    /// Finish the stroke: persist direction, commit to PIF, push undo entry.
     fn finish_stroke(&mut self) {
         let Some(stroke) = self.active_stroke.take() else { return };
+
+        // Persist the stroke's final direction so the next stroke starts
+        // oriented the same way (matches professional app behaviour).
+        self.last_dir_x = stroke.dir_x;
+        self.last_dir_y = stroke.dir_y;
+
         if stroke.tiles_current.is_empty() { return; }
 
         let mut doc = self.document.write();

@@ -1,0 +1,22 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Bristle Soft brush mask.
+    Six vertical bristle strands, each fading to black at the tips.
+    R channel (grayscale brightness) = per-pixel intensity.
+  -->
+  <defs>
+    <!-- Vertical fade: dark tips → full white body → dark tips -->
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="black"/>
+      <stop offset="18%"  stop-color="white"/>
+      <stop offset="82%"  stop-color="white"/>
+      <stop offset="100%" stop-color="black"/>
+    </linearGradient>
+  </defs>
+  <rect x="7"  y="4" width="4"   height="56" fill="url(#fade)" rx="2" opacity="0.85"/>
+  <rect x="15" y="4" width="3.5" height="56" fill="url(#fade)" rx="2" opacity="0.92"/>
+  <rect x="23" y="4" width="4"   height="56" fill="url(#fade)" rx="2" opacity="1.00"/>
+  <rect x="31" y="4" width="3.5" height="56" fill="url(#fade)" rx="2" opacity="0.96"/>
+  <rect x="39" y="4" width="4"   height="56" fill="url(#fade)" rx="2" opacity="0.90"/>
+  <rect x="47" y="4" width="3"   height="56" fill="url(#fade)" rx="2" opacity="0.80"/>
+</svg>
