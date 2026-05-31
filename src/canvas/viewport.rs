@@ -11,7 +11,7 @@ use gpui::*;
 use parking_lot::RwLock;
 use ui::ActiveTheme;
 
-use crate::brush_engine::{composite_wet_erase, composite_wet_over_base, stamp_into_wet, BrushMask, BrushRegistry};
+use crate::brush_engine::{stamp_into_wet, BrushMask, BrushRegistry};
 use crate::state::{ActiveTool, Document, commands::PaintStrokeCommand};
 use super::renderer::{CanvasRenderer, CanvasRenderInput};
 
@@ -34,6 +34,8 @@ struct ActiveStroke {
     layer_id:      String,
     /// Brush mask locked in at stroke start.
     brush_mask:    Arc<BrushMask>,
+    /// Base spacing from brush config (`0..1` of brush size).
+    brush_spacing: f32,
 
     // ── Direction tracking ────────────────────────────────────────────────────
     /// Smoothed stroke-direction unit vector (cos θ, sin θ).
@@ -47,15 +49,27 @@ struct ActiveStroke {
     // ── Wet-buffer model ──────────────────────────────────────────────────────
     /// Snapshot of each tile *before* this stroke began.  Never modified.
     tiles_before:  HashMap<(String, u32, u32), Vec<u8>>,
-    /// Accumulated paint for this stroke only.  Alpha capped at brush_opacity.
-    /// Paint: stamped into here; erase: erase-mask stamped into here.
+    /// Accumulated stroke stamps for this stroke.
     wet_tiles:     HashMap<(String, u32, u32), Vec<u8>>,
-    /// Composited result (tiles_before + wet_tiles).  This is what gets
-    /// written to PIF and shown as live tile data during the stroke.
+    /// Composited result (tiles_before + wet).  This is
+    /// what gets written to PIF and shown as live tile data during the stroke.
     tiles_current: HashMap<(String, u32, u32), Vec<u8>>,
 
     /// Last canvas-space point stamped (for interpolation).
     last_pos: Option<Point<f32>>,
+    /// Smoothed speed in brush-diameters per pointer sample.
+    speed_ema: f32,
+    /// Distance since the last placed stamp (for arc-length resampling).
+    stamp_carry: f32,
+}
+
+#[derive(Clone, Copy)]
+struct StampSample {
+    pos: Point<f32>,
+    dir_x: f32,
+    dir_y: f32,
+    axis_scale: f32,
+    flow_scale: f32,
 }
 
 // ── CanvasViewport entity ─────────────────────────────────────────────────────
@@ -149,7 +163,7 @@ impl CanvasViewport {
 
     // ── Drawing helpers ───────────────────────────────────────────────────────
 
-    /// Ensure a tile is initialised in all three buffers (before / wet / current).
+    /// Ensure a tile is initialised in all stroke buffers.
     fn ensure_tile(
         layer_id:      &str,
         tx: u32, ty: u32,
@@ -172,22 +186,74 @@ impl CanvasViewport {
         tiles_before.insert(key, base);
     }
 
-    /// Stamp at `canvas_pos`, using the stroke's current smoothed direction.
-    ///
-    /// Paint is accumulated in the **wet buffer**; `tiles_current` is then
-    /// rebuilt from `tiles_before + wet` so the opacity cap is always honoured
-    /// regardless of how many stamps overlap the same pixel.
-    fn stamp_at(
+    fn apply_wet_over_current(cur: &mut [u8], wet: &[u8]) {
+        for i in (0..cur.len()).step_by(4) {
+            let sa = wet[i + 3] as f32 / 255.0;
+            if sa <= 0.0 {
+                continue;
+            }
+            let da = cur[i + 3] as f32 / 255.0;
+            let out_a = sa + da * (1.0 - sa);
+            if out_a <= 0.0 {
+                continue;
+            }
+            let sr = wet[i] as f32 / 255.0;
+            let sg = wet[i + 1] as f32 / 255.0;
+            let sb = wet[i + 2] as f32 / 255.0;
+            let dr = cur[i] as f32 / 255.0;
+            let dg = cur[i + 1] as f32 / 255.0;
+            let db = cur[i + 2] as f32 / 255.0;
+            let out_r = (sr * sa + dr * da * (1.0 - sa)) / out_a;
+            let out_g = (sg * sa + dg * da * (1.0 - sa)) / out_a;
+            let out_b = (sb * sa + db * da * (1.0 - sa)) / out_a;
+            cur[i] = (out_r * 255.0).round().clamp(0.0, 255.0) as u8;
+            cur[i + 1] = (out_g * 255.0).round().clamp(0.0, 255.0) as u8;
+            cur[i + 2] = (out_b * 255.0).round().clamp(0.0, 255.0) as u8;
+            cur[i + 3] = (out_a * 255.0).round().clamp(0.0, 255.0) as u8;
+        }
+    }
+
+    fn apply_wet_erase_over_current(cur: &mut [u8], wet: &[u8]) {
+        for i in (0..cur.len()).step_by(4) {
+            let erase = wet[i + 3] as f32 / 255.0;
+            if erase <= 0.0 {
+                continue;
+            }
+            let ca = cur[i + 3] as f32 / 255.0;
+            cur[i + 3] = (ca * (1.0 - erase) * 255.0).round().clamp(0.0, 255.0) as u8;
+        }
+    }
+
+    fn recomposite_tile(stroke: &mut ActiveStroke, key: &(String, u32, u32)) {
+        let (Some(before), Some(cur)) = (
+            stroke.tiles_before.get(key),
+            stroke.tiles_current.get_mut(key),
+        ) else {
+            return;
+        };
+        cur.clone_from_slice(before);
+        if stroke.is_eraser {
+            if let Some(w) = stroke.wet_tiles.get(key) {
+                Self::apply_wet_erase_over_current(cur, w);
+            }
+        } else {
+            if let Some(w) = stroke.wet_tiles.get(key) {
+                Self::apply_wet_over_current(cur, w);
+            }
+        }
+    }
+
+    fn stamp_sample(
         stroke:     &mut ActiveStroke,
-        canvas_pos: Point<f32>,
+        sample:     &StampSample,
         doc:        &Document,
     ) {
-        let angle  = stroke.dir_y.atan2(stroke.dir_x);
+        let angle  = sample.dir_y.atan2(sample.dir_x);
         let radius = stroke.brush_size * 0.5;
-        let min_x  = (canvas_pos.x - radius).floor().max(0.0) as u32;
-        let min_y  = (canvas_pos.y - radius).floor().max(0.0) as u32;
-        let max_x  = (canvas_pos.x + radius).ceil() as u32;
-        let max_y  = (canvas_pos.y + radius).ceil() as u32;
+        let min_x  = (sample.pos.x - radius).floor().max(0.0) as u32;
+        let min_y  = (sample.pos.y - radius).floor().max(0.0) as u32;
+        let max_x  = (sample.pos.x + radius).ceil() as u32;
+        let max_y  = (sample.pos.y + radius).ceil() as u32;
 
         let min_tx = min_x / TILE_SIZE;
         let max_tx = max_x / TILE_SIZE;
@@ -204,34 +270,23 @@ impl CanvasViewport {
                 );
                 let key = (stroke.layer_id.clone(), tx, ty);
 
-                // 1. Stamp into the wet buffer.
-                if let Some(wet) = stroke.wet_tiles.get_mut(&key) {
+                let wet = stroke.wet_tiles.get_mut(&key);
+                if let Some(wet) = wet {
                     stamp_into_wet(
                         wet,
                         &stroke.brush_mask,
-                        canvas_pos,
+                        sample.pos,
                         stroke.brush_size,
+                        (stroke.brush_size * sample.axis_scale).max(1.0),
                         angle,
-                        stroke.brush_opacity, // flow == opacity for now (1:1)
+                        (stroke.brush_opacity * sample.flow_scale).clamp(0.01, 1.0),
                         stroke.brush_opacity,
                         stroke.color,
                         tx * TILE_SIZE,
                         ty * TILE_SIZE,
                     );
                 }
-
-                // 2. Rebuild tiles_current from before + wet.
-                let before = stroke.tiles_before.get(&key);
-                let wet    = stroke.wet_tiles.get(&key);
-                if let (Some(b), Some(w)) = (before, wet) {
-                    if let Some(cur) = stroke.tiles_current.get_mut(&key) {
-                        if stroke.is_eraser {
-                            composite_wet_erase(cur, b, w);
-                        } else {
-                            composite_wet_over_base(cur, b, w);
-                        }
-                    }
-                }
+                Self::recomposite_tile(stroke, &key);
             }
         }
     }
@@ -251,6 +306,11 @@ impl CanvasViewport {
         let dx   = to.x - from.x;
         let dy   = to.y - from.y;
         let dist = (dx * dx + dy * dy).sqrt();
+        if dist < 0.01 {
+            return;
+        }
+        let seg_nx = dx / dist;
+        let seg_ny = dy / dist;
 
         // Add the new position to the ring buffer.
         if stroke.pos_buffer.len() >= DIR_WINDOW {
@@ -278,15 +338,51 @@ impl CanvasViewport {
                 stroke.dir_y += (ny - stroke.dir_y) * ALPHA;
             }
         }
-
-        let step  = (stroke.brush_size * 0.20).max(1.0);
-        let steps = (dist / step).ceil() as u32;
-
-        for i in 1..=steps.max(1) {
-            let t  = i as f32 / steps.max(1) as f32;
-            let pt = Point::new(from.x + dx * t, from.y + dy * t);
-            Self::stamp_at(stroke, pt, doc);
+        let dir_len = (stroke.dir_x * stroke.dir_x + stroke.dir_y * stroke.dir_y).sqrt();
+        if dir_len > 0.0001 {
+            stroke.dir_x /= dir_len;
+            stroke.dir_y /= dir_len;
+        } else {
+            stroke.dir_x = seg_nx;
+            stroke.dir_y = seg_ny;
         }
+
+        // Speed in brush diameters per input sample.  We adapt spacing, flow,
+        // and motion-axis footprint to keep fast strokes responsive and clean.
+        let speed = if stroke.brush_size > 1.0 {
+            dist / stroke.brush_size
+        } else {
+            dist
+        };
+        const SPEED_ALPHA: f32 = 0.35;
+        stroke.speed_ema += (speed - stroke.speed_ema) * SPEED_ALPHA;
+        let speed = stroke.speed_ema.max(0.0);
+
+        let spacing_boost = (1.0 + speed * 1.10).clamp(1.0, 2.6);
+        let raw_step = stroke.brush_size * stroke.brush_spacing * spacing_boost;
+        let min_step = (stroke.brush_size * 0.15).max(0.25);
+        let max_step = (stroke.brush_size * 0.70).max(min_step);
+        let step = raw_step.clamp(min_step, max_step);
+
+        let large_brush_factor = ((stroke.brush_size - 24.0) / 96.0).clamp(0.0, 1.0);
+        let axis_scale = (1.0 - speed * large_brush_factor * 0.55).clamp(0.45, 1.0);
+        let flow_scale = (1.0 / (1.0 + speed * 0.8)).clamp(0.35, 1.0);
+
+        let carry = stroke.stamp_carry.min((step - 0.001).max(0.0));
+        let mut offset = if carry <= 0.0 { step } else { step - carry };
+        while offset <= dist {
+            let pt = Point::new(from.x + seg_nx * offset, from.y + seg_ny * offset);
+            let sample = StampSample {
+                pos: pt,
+                dir_x: stroke.dir_x,
+                dir_y: stroke.dir_y,
+                axis_scale,
+                flow_scale,
+            };
+            Self::stamp_sample(stroke, &sample, doc);
+            offset += step;
+        }
+        stroke.stamp_carry = if step > 0.0 { (carry + dist) % step } else { 0.0 };
     }
 
     /// Begin a paint stroke from a canvas-space position.
@@ -302,11 +398,12 @@ impl CanvasViewport {
             _ => (color, false),
         };
 
-        // Lock the active brush mask for the duration of this stroke.
-        let brush_mask = self.brush_registry
+        // Lock active brush params for the duration of this stroke.
+        let (brush_mask, brush_spacing) = self
+            .brush_registry
             .get(&doc.tool_state.active_brush_id)
-            .map(|e| e.mask.clone())
-            .unwrap_or_else(|| Arc::new(BrushMask::default_round()));
+            .map(|e| (e.mask.clone(), e.config.spacing.clamp(0.05, 0.75)))
+            .unwrap_or_else(|| (Arc::new(BrushMask::default_round()), 0.20));
 
         let mut stroke = ActiveStroke {
             color,
@@ -315,6 +412,7 @@ impl CanvasViewport {
             is_eraser,
             layer_id,
             brush_mask,
+            brush_spacing,
             // Inherit last stroke's direction — first stamp of a new stroke
             // stays oriented correctly rather than snapping to a fixed default.
             dir_x: self.last_dir_x,
@@ -324,8 +422,17 @@ impl CanvasViewport {
             wet_tiles:     HashMap::new(),
             tiles_current: HashMap::new(),
             last_pos:      Some(canvas_pos),
+            speed_ema:     0.0,
+            stamp_carry:   0.0,
         };
-        Self::stamp_at(&mut stroke, canvas_pos, &doc);
+        let seed = StampSample {
+            pos: canvas_pos,
+            dir_x: stroke.dir_x,
+            dir_y: stroke.dir_y,
+            axis_scale: 1.0,
+            flow_scale: 1.0,
+        };
+        Self::stamp_sample(&mut stroke, &seed, &doc);
         self.active_stroke = Some(stroke);
     }
 
@@ -334,8 +441,13 @@ impl CanvasViewport {
         let doc = self.document.read();
         if let Some(stroke) = &mut self.active_stroke {
             let from = stroke.last_pos.unwrap_or(canvas_pos);
-            Self::stamp_segment(stroke, from, canvas_pos, &doc);
-            stroke.last_pos = Some(canvas_pos);
+            let smooth_alpha = (0.20 + (stroke.speed_ema * 0.25).clamp(0.0, 0.40)).clamp(0.20, 0.60);
+            let smooth_pos = Point::new(
+                from.x + (canvas_pos.x - from.x) * smooth_alpha,
+                from.y + (canvas_pos.y - from.y) * smooth_alpha,
+            );
+            Self::stamp_segment(stroke, from, smooth_pos, &doc);
+            stroke.last_pos = Some(smooth_pos);
         }
     }
 

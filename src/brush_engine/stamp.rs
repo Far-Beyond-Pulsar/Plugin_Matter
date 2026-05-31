@@ -50,7 +50,8 @@ const TILE_SZ: usize = TILE as usize;
 /// - `wet_tile`      — 256×256 RGBA8 wet-buffer; starts fully transparent.
 /// - `mask`          — brush mask, sampled with bilinear interpolation.
 /// - `center`        — stamp centre in canvas-space pixels.
-/// - `size`          — stamp diameter in canvas pixels.
+/// - `size_x`        — stamp diameter across the stroke.
+/// - `size_y`        — stamp diameter along the stroke direction.
 /// - `angle`         — stroke direction in radians (0 = right, π/2 = down).
 /// - `flow`          — per-stamp paint deposition (0–1).  Lower values mean
 ///                     each individual stamp is lighter; opacity is the ceiling.
@@ -61,7 +62,8 @@ pub fn stamp_into_wet(
     wet_tile:      &mut [u8],
     mask:          &BrushMask,
     center:        Point<f32>,
-    size:          f32,
+    size_x:        f32,
+    size_y:        f32,
     angle:         f32,
     flow:          f32,
     opacity:       f32,
@@ -69,17 +71,23 @@ pub fn stamp_into_wet(
     tile_offset_x: u32,
     tile_offset_y: u32,
 ) {
-    let radius = size / 2.0;
+    if size_x <= 0.0 || size_y <= 0.0 {
+        return;
+    }
 
     // Rotation: tip (V=0) aligns with stroke direction.
     let a     = angle + FRAC_PI_2;
     let cos_a = a.cos();
     let sin_a = a.sin();
 
-    let px_min = (center.x - radius).floor().max(tile_offset_x as f32) as u32;
-    let px_max = ((center.x + radius).ceil() as u32).min(tile_offset_x + TILE);
-    let py_min = (center.y - radius).floor().max(tile_offset_y as f32) as u32;
-    let py_max = ((center.y + radius).ceil() as u32).min(tile_offset_y + TILE);
+    // Axis-aligned half extents of the rotated ellipse footprint.
+    let half_w = 0.5 * (cos_a.abs() * size_x + sin_a.abs() * size_y);
+    let half_h = 0.5 * (sin_a.abs() * size_x + cos_a.abs() * size_y);
+
+    let px_min = (center.x - half_w).floor().max(tile_offset_x as f32) as u32;
+    let px_max = ((center.x + half_w).ceil() as u32).min(tile_offset_x + TILE);
+    let py_min = (center.y - half_h).floor().max(tile_offset_y as f32) as u32;
+    let py_max = ((center.y + half_h).ceil() as u32).min(tile_offset_y + TILE);
 
     for py in py_min..py_max {
         for px in px_min..px_max {
@@ -89,8 +97,11 @@ pub fn stamp_into_wet(
             // Rotate into brush-local UV space (bilinear sample).
             let dx_l =  dx * cos_a + dy * sin_a;
             let dy_l = -dx * sin_a + dy * cos_a;
-            let u = (dx_l / size + 0.5).clamp(0.0, 1.0);
-            let v = (dy_l / size + 0.5).clamp(0.0, 1.0);
+            let u = dx_l / size_x + 0.5;
+            let v = dy_l / size_y + 0.5;
+            if !(0.0..=1.0).contains(&u) || !(0.0..=1.0).contains(&v) {
+                continue;
+            }
 
             let ch = mask.sample(u, v);
             // Skip fully outside the mask.
