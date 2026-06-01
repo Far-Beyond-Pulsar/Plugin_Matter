@@ -11,7 +11,7 @@ crate-type = ["lib", "cdylib"]
 gpui = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI", rev = "62cb53f4a962af82f677bdc05be24133acf3ad2a", package = "gpui-ce" }
 
 # UI Components
-ui = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI-Component", rev = "abd725c5a186e4cefa8aa947ff73ab9ae4c1a6de" }
+ui = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI-Component", rev = "3e386a01cf3e0e3c0f86eed7f3e3b9835ce54f70" }
 
 # PIF Image Format
 pulsar_image_format = { git = "https://github.com/Far-Beyond-Pulsar/PIF-rs", rev = "c2cd8c4dfc49e12bebd76812308a7dda1f851452" }
