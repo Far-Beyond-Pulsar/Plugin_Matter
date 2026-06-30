@@ -8,8 +8,8 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 # GPUI Framework
-gpui-ce = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI", rev = "2c1cd08bcf3dd380676b985fc0c14b84c3da2d39" }
-ui      = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI-Component", rev = "c78ccad3154a34bf0ba16b9192aeb9374f2696c2" }
+gpui-ce = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI", rev = "2abda4ffb8542aad150fa4ff9ebc7263997fd731" }
+ui      = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI-Component", rev = "3f2168f6e04e6b1a16ad7352c85b32641e8c5afa" }
 
 # PIF Image Format
 pulsar_image_format = { git = "https://github.com/Far-Beyond-Pulsar/PIF-rs", rev = "c2cd8c4dfc49e12bebd76812308a7dda1f851452" }
