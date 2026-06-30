@@ -2224,7 +2224,7 @@ dependencies = [
 [[package]]
 name = "gpui-ce"
 version = "1.0.0"
-source = "git+https://github.com/Far-Beyond-Pulsar/WGPUI?rev=b1f2c2c8e98f60c2b634b9f19e4959799ff5f829#b1f2c2c8e98f60c2b634b9f19e4959799ff5f829"
+source = "git+https://github.com/Far-Beyond-Pulsar/WGPUI?rev=31fbf35800b4cfc2ddf202a1c16a2971251ca84c#31fbf35800b4cfc2ddf202a1c16a2971251ca84c"
 dependencies = [
  "anyhow",
  "arboard",
@@ -6596,7 +6596,7 @@ dependencies = [
 [[package]]
 name = "ui"
 version = "0.1.0"
-source = "git+https://github.com/Far-Beyond-Pulsar/WGPUI-Component?rev=d768a9f248b0fa236a41b68f8d0a71d50c38aa04#d768a9f248b0fa236a41b68f8d0a71d50c38aa04"
+source = "git+https://github.com/Far-Beyond-Pulsar/WGPUI-Component?rev=eda5213258be50bf5a9556ff9a68221bd5f449cd#eda5213258be50bf5a9556ff9a68221bd5f449cd"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -6646,7 +6646,7 @@ dependencies = [
 [[package]]
 name = "ui-macros"
 version = "0.1.0"
-source = "git+https://github.com/Far-Beyond-Pulsar/WGPUI-Component?rev=d768a9f248b0fa236a41b68f8d0a71d50c38aa04#d768a9f248b0fa236a41b68f8d0a71d50c38aa04"
+source = "git+https://github.com/Far-Beyond-Pulsar/WGPUI-Component?rev=eda5213258be50bf5a9556ff9a68221bd5f449cd#eda5213258be50bf5a9556ff9a68221bd5f449cd"
 dependencies = [
  "proc-macro2",
  "quote",
