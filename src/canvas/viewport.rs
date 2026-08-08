@@ -2,6 +2,7 @@
 //! canvas renderer each frame. Follows the same pattern as HelioViewport in
 //! the Pulsar level editor.
 
+use rust_i18n::t;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
@@ -621,7 +622,7 @@ impl Render for CanvasViewport {
                 .items_center()
                 .justify_center()
                 .child(div().text_color(rgba(0x888899ff)).text_sm()
-                       .child("Initialising canvas…"))
+                       .child(t!("Matter.InitialisingCanvas").to_string()))
                 .into_any_element()
         };
 

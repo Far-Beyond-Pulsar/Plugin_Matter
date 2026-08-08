@@ -1,5 +1,6 @@
 //! Properties panel — brush picker, colour pickers, and brush settings.
 
+use rust_i18n::t;
 use gpui::*;
 use ui::{
     color_picker::ColorPicker,
@@ -45,7 +46,7 @@ pub fn render_properties_panel(
                         .text_sm()
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme.foreground)
-                        .child("Properties")
+                        .child(t!("Matter.Properties").to_string())
                 )
         )
         // ── Colour section ─────────────────────────────────────────────────
@@ -61,7 +62,7 @@ pub fn render_properties_panel(
                         .text_xs()
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme.foreground.opacity(0.7))
-                        .child("COLOR")
+                        .child(t!("Matter.Color").to_string())
                 )
                 .child(
                     div()
@@ -78,11 +79,11 @@ pub fn render_properties_panel(
                                     div()
                                         .text_xs()
                                         .text_color(theme.foreground.opacity(0.6))
-                                        .child("Foreground")
+                                        .child(t!("Matter.Foreground").to_string())
                                 )
                                 .child(
                                     ColorPicker::new(fg_picker)
-                                        .label("Foreground")
+                                        .label(t!("Matter.Foreground").to_string())
                                 )
                         )
                         // Background picker
@@ -95,11 +96,11 @@ pub fn render_properties_panel(
                                     div()
                                         .text_xs()
                                         .text_color(theme.foreground.opacity(0.6))
-                                        .child("Background")
+                                        .child(t!("Matter.Background").to_string())
                                 )
                                 .child(
                                     ColorPicker::new(bg_picker)
-                                        .label("Background")
+                                        .label(t!("Matter.Background").to_string())
                                 )
                         )
                 )
@@ -119,12 +120,12 @@ pub fn render_properties_panel(
                         .text_xs()
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme.foreground.opacity(0.7))
-                        .child("BRUSH")
+                        .child(t!("Matter.Brush").to_string())
                 )
                 // Dropdown — lists all loaded brushes with shape thumbnails.
                 .child(
                     Dropdown::new(brush_dropdown)
-                        .placeholder("Select brush…")
+                        .placeholder(t!("Matter.SelectBrush").to_string())
                         .menu_width(px(220.0))
                 )
         )
@@ -146,7 +147,7 @@ pub fn render_properties_panel(
                             div()
                                 .text_xs()
                                 .text_color(theme.foreground.opacity(0.6))
-                                .child("Size")
+                                .child(t!("Matter.Size").to_string())
                         )
                         .child(
                             div()

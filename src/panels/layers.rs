@@ -1,5 +1,6 @@
 //! Layers panel
 
+use rust_i18n::t;
 use gpui::{prelude::FluentBuilder as _, *};
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -44,13 +45,13 @@ pub fn render_layers_panel(
                         .text_sm()
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme.foreground)
-                        .child("Layers")
+                        .child(t!("Matter.Layers").to_string())
                 )
                 .child({
                     let doc_clone = document.clone();
                     Button::new("add-layer")
                         .icon(IconName::Plus)
-                        .tooltip("Add Layer")
+                        .tooltip(t!("Matter.AddLayer").to_string())
                         .on_click(move |_event, _window, _cx| {
                             let mut doc = doc_clone.write();
                             let layer_id   = format!("layer-{}", uuid::Uuid::new_v4());

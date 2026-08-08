@@ -2,6 +2,8 @@
 //!
 //! A modular texture painting and procedural material generation plugin for Pulsar Engine.
 
+rust_i18n::i18n!("locales", fallback = "en");
+
 mod plugin;
 mod panel;
 mod panels;

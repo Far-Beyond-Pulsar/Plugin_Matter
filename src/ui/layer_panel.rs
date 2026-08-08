@@ -1,5 +1,6 @@
 //! Layer panel component
 
+use rust_i18n::t;
 use gpui::*;
 use pulsar_image_format::model::Layer;
 
@@ -37,7 +38,7 @@ where
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(0xcccccc))
                 .mb_2()
-                .child("Layers")
+                .child(t!("Matter.Layers").to_string())
         )
         .child(
             // New layer button
@@ -52,7 +53,7 @@ where
                 .text_color(rgb(0xffffff))
                 .text_sm()
                 .hover(|this| this.bg(rgb(0x0066b8)))
-                .child("+ New Layer")
+                .child(t!("Matter.NewLayer").to_string())
         )
         .child(
             // Layer list

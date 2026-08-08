@@ -1,0 +1,17 @@
+# Matter Editor translations - en
+
+Matter.InitialisingCanvas: Initialising canvas…
+Matter.Layers: Layers
+Matter.AddLayer: Add Layer
+Matter.Properties: Properties
+Matter.Color: COLOR
+Matter.Foreground: Foreground
+Matter.Background: Background
+Matter.Brush: BRUSH
+Matter.SelectBrush: Select brush…
+Matter.Size: Size
+Matter.Colors: Colors
+Matter.NewLayer: + New Layer
+Matter.Undo: Undo (Cmd+Z)
+Matter.Redo: Redo (Cmd+Shift+Z)
+Matter.Zoom100: 100%

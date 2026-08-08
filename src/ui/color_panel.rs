@@ -1,5 +1,6 @@
 //! Color panel component
 
+use rust_i18n::t;
 use gpui::*;
 
 /// Render the color panel
@@ -37,7 +38,7 @@ pub fn render_color_panel(fg_color: Rgba, bg_color: Rgba) -> impl IntoElement {
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(0xcccccc))
                 .mb_2()
-                .child("Colors")
+                .child(t!("Matter.Colors").to_string())
         )
         .child(
             // Color swatches
@@ -54,7 +55,7 @@ pub fn render_color_panel(fg_color: Rgba, bg_color: Rgba) -> impl IntoElement {
                             div()
                                 .text_xs()
                                 .text_color(rgb(0x999999))
-                                .child("Foreground")
+                                .child(t!("Matter.Foreground").to_string())
                         )
                         .child(
                             div()
@@ -75,7 +76,7 @@ pub fn render_color_panel(fg_color: Rgba, bg_color: Rgba) -> impl IntoElement {
                             div()
                                 .text_xs()
                                 .text_color(rgb(0x999999))
-                                .child("Background")
+                                .child(t!("Matter.Background").to_string())
                         )
                         .child(
                             div()

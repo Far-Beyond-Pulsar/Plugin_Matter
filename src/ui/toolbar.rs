@@ -1,5 +1,6 @@
 //! Toolbar rendering
 
+use rust_i18n::t;
 use gpui::*;
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -29,7 +30,7 @@ pub fn render_toolbar(
         // ── History ────────────────────────────────────────────────────────
         .child({
             let doc_undo = document.clone();
-            let mut btn = Button::new("undo").icon(IconName::Undo).tooltip("Undo (Cmd+Z)");
+            let mut btn = Button::new("undo").icon(IconName::Undo).tooltip(t!("Matter.Undo").to_string());
             if can_undo {
                 btn = btn.on_click(move |_, _, _| {
                     let _ = doc_undo.write().history.undo();
@@ -39,7 +40,7 @@ pub fn render_toolbar(
         })
         .child({
             let doc_redo = document.clone();
-            let mut btn = Button::new("redo").icon(IconName::Redo).tooltip("Redo (Cmd+Shift+Z)");
+            let mut btn = Button::new("redo").icon(IconName::Redo).tooltip(t!("Matter.Redo").to_string());
             if can_redo {
                 btn = btn.on_click(move |_, _, _| {
                     let _ = doc_redo.write().history.redo();
@@ -61,7 +62,7 @@ pub fn render_toolbar(
                 .text_xs()
                 .text_color(theme.foreground.opacity(0.6))
                 .px_2()
-                .child("100%")   // TODO: bind to viewport zoom
+                .child(t!("Matter.Zoom100").to_string())   // TODO: bind to viewport zoom
         )
 }
 
