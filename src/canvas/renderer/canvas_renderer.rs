@@ -61,6 +61,14 @@ struct LayerGpu {
     bind_group: wgpu::BindGroup,
     width:      u32,
     height:     u32,
+    /// History position the texture was last composited at. The composite is
+    /// rebuilt tile-by-tile, so the pass is skipped while this is
+    /// unchanged and no live stroke overlay touches the layer.
+    synced_rev: Option<(usize, usize)>,
+    /// The last upload included live stroke tiles (needs one refresh after).
+    had_live:   bool,
+    /// Hash of the content last uploaded per tile (`None` = empty); drives delta upload.
+    tile_hash:  HashMap<(u32, u32), Option<u64>>,
 }
 
 // ── Initialised GPU state ─────────────────────────────────────────────────────
@@ -280,66 +288,87 @@ impl CanvasRenderer {
                     bind_group,
                     width:  canvas_w,
                     height: canvas_h,
+                    synced_rev: None,
+                    had_live:   false,
+                    tile_hash:  HashMap::new(),
                 });
             }
 
-            // Composite tile data into a CPU buffer then upload.
-            let Some(layer_gpu) = state.layer_gpu.get(&id) else { continue };
+            let rev = (document.history.undo_count(), document.history.redo_count());
+            let live_here = live_tiles.is_some_and(|m| m.keys().any(|k| k.0 == id));
+            if let Some(g) = state.layer_gpu.get(&id) {
+                if g.synced_rev == Some(rev) && !live_here && !g.had_live {
+                    continue;
+                }
+            }
+            // Delta upload: hash every tile and write only the ones whose
+            // content differs from what the texture already holds.
+            let Some(layer_gpu) = state.layer_gpu.get_mut(&id) else { continue };
             let tile_size: u32 = 256;
             let tiles_x = canvas_w.div_ceil(tile_size);
             let tiles_y = canvas_h.div_ceil(tile_size);
 
-            let mut composite = vec![0u8; (canvas_w * canvas_h * 4) as usize];
+            profiling::profile_scope!("matter: layer delta upload");
+            let (mut uploaded, mut total) = (0u32, 0u32);
             for ty in 0..tiles_y {
                 for tx in 0..tiles_x {
+                    total += 1;
                     // Prefer live stroke data over committed PIF data so brushstrokes
                     // appear immediately during painting.
-                    let tile_data: Vec<u8> = if let Some(live) = live_tiles {
-                        if let Some(d) = live.get(&(id.clone(), tx, ty)) {
-                            d.clone()
-                        } else {
-                            let Ok(d) = document.load_tile(&id, tx, ty) else { continue };
-                            d
-                        }
-                    } else {
-                        let Ok(d) = document.load_tile(&id, tx, ty) else { continue };
-                        d
+                    let tile_data: Option<Vec<u8>> = match live_tiles.and_then(|l| l.get(&(id.clone(), tx, ty))) {
+                        Some(d) => Some(d.clone()),
+                        None => document.load_tile(&id, tx, ty).ok(),
                     };
-                    if tile_data.is_empty() { continue }
+                    let tile_data = tile_data.filter(|d| !d.is_empty());
+
+                    // `None` = empty tile. The texture starts transparent, so an
+                    // empty tile only needs a write if it previously held pixels.
+                    let hash = tile_data.as_deref().map(|d| {
+                        use std::hash::{Hash, Hasher};
+                        let mut h = std::collections::hash_map::DefaultHasher::new();
+                        d.hash(&mut h);
+                        h.finish()
+                    });
+                    let previous = layer_gpu.tile_hash.get(&(tx, ty)).copied().flatten();
+                    if hash == previous { continue }
+                    layer_gpu.tile_hash.insert((tx, ty), hash);
 
                     let tile_w = tile_size.min(canvas_w.saturating_sub(tx * tile_size));
                     let tile_h = tile_size.min(canvas_h.saturating_sub(ty * tile_size));
+                    if tile_w == 0 || tile_h == 0 { continue }
 
-                    for row in 0..tile_h {
-                        let src_start = (row * tile_size * 4) as usize;
-                        let dst_row   = ty * tile_size + row;
-                        let dst_start = (dst_row * canvas_w * 4 + tx * tile_size * 4) as usize;
-                        let len       = (tile_w * 4) as usize;
-
-                        if src_start + len > tile_data.len() { break; }
-                        if dst_start + len > composite.len()  { break; }
-
-                        composite[dst_start..dst_start + len]
-                            .copy_from_slice(&tile_data[src_start..src_start + len]);
-                    }
+                    let zeros;
+                    let bytes: &[u8] = match tile_data.as_deref() {
+                        Some(d) => d,
+                        None => {
+                            zeros = vec![0u8; (tile_size * tile_h * 4) as usize];
+                            &zeros
+                        }
+                    };
+                    // Source rows are `tile_size` pixels wide regardless of the
+                    // (possibly clipped) edge tile; guard against short data.
+                    if bytes.len() < ((tile_h - 1) * tile_size * 4 + tile_w * 4) as usize { continue }
+                    uploaded += 1;
+                    queue.write_texture(
+                        wgpu::TexelCopyTextureInfo {
+                            texture:   &layer_gpu.texture,
+                            mip_level: 0,
+                            origin:    wgpu::Origin3d { x: tx * tile_size, y: ty * tile_size, z: 0 },
+                            aspect:    wgpu::TextureAspect::All,
+                        },
+                        bytes,
+                        wgpu::TexelCopyBufferLayout {
+                            offset:         0,
+                            bytes_per_row:  Some(tile_size * 4),
+                            rows_per_image: Some(tile_h),
+                        },
+                        wgpu::Extent3d { width: tile_w, height: tile_h, depth_or_array_layers: 1 },
+                    );
                 }
             }
-
-            queue.write_texture(
-                wgpu::TexelCopyTextureInfo {
-                    texture:   &layer_gpu.texture,
-                    mip_level: 0,
-                    origin:    wgpu::Origin3d::ZERO,
-                    aspect:    wgpu::TextureAspect::All,
-                },
-                &composite,
-                wgpu::TexelCopyBufferLayout {
-                    offset:         0,
-                    bytes_per_row:  Some(canvas_w * 4),
-                    rows_per_image: Some(canvas_h),
-                },
-                wgpu::Extent3d { width: canvas_w, height: canvas_h, depth_or_array_layers: 1 },
-            );
+            tracing::trace!("[matter] layer {id}: uploaded {uploaded}/{total} tiles");
+            layer_gpu.synced_rev = Some(rev);
+            layer_gpu.had_live = live_here;
         }
 
         // Drop GPU resources for removed layers.

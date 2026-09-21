@@ -7,6 +7,7 @@ edition = "2021"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
+profiling = { path = "../../../crates/profiling" }
 # GPUI Framework
 gpui-ce = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI", rev = "31fbf35800b4cfc2ddf202a1c16a2971251ca84c" }
 ui      = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI-Component", rev = "eda5213258be50bf5a9556ff9a68221bd5f449cd" }

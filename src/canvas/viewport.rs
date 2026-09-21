@@ -113,7 +113,19 @@ pub struct CanvasViewport {
     // (also logical) into element-local / canvas-space coordinates.
     element_origin: Rc<RefCell<Point<f32>>>,
     element_size:   Rc<RefCell<[f32; 2]>>,
+
+    /// Render inputs of the last frame drawn; a change keeps the canvas animating.
+    last_sig:   Vec<f32>,
+    /// Keep requesting frames until this instant (settle window after a change).
+    busy_until: std::time::Instant,
+    /// A low-rate re-check is already scheduled.
+    poll_pending: bool,
 }
+
+/// Frames are requested continuously for this long after the last input change.
+const SETTLE: std::time::Duration = std::time::Duration::from_millis(300);
+/// While idle the canvas re-checks the document (edited by other panels) at this rate.
+const IDLE_POLL: std::time::Duration = std::time::Duration::from_millis(200);
 
 impl CanvasViewport {
     pub fn new(
@@ -141,6 +153,9 @@ impl CanvasViewport {
             cursor_win:    None,
             element_origin: Rc::new(RefCell::new(Point::default())),
             element_size:   Rc::new(RefCell::new([0.0, 0.0])),
+            last_sig:   Vec::new(),
+            busy_until: std::time::Instant::now(),
+            poll_pending: false,
         }
     }
 
@@ -548,7 +563,7 @@ impl EventEmitter<()> for CanvasViewport {}
 
 impl Render for CanvasViewport {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        window.request_animation_frame();
+        let mut frame_sig: Option<Vec<f32>> = None;
 
         // ── Lazy WgpuSurface creation ──────────────────────────────────────
         if self.surface.is_none() {
@@ -591,9 +606,26 @@ impl Render for CanvasViewport {
                         },
                     };
 
+                    frame_sig = Some(vec![
+                        input.pan_offset[0], input.pan_offset[1], input.zoom,
+                        input.canvas_size[0], input.canvas_size[1],
+                        input.viewport_size[0], input.viewport_size[1],
+                        input.cursor_screen_pos.map_or(-1.0, |c| c[0]),
+                        input.cursor_screen_pos.map_or(-1.0, |c| c[1]),
+                        input.brush_radius,
+                        input.brush_color[0], input.brush_color[1],
+                        input.brush_color[2], input.brush_color[3],
+                        doc.history.undo_count() as f32,
+                        doc.history.redo_count() as f32,
+                        doc.layers().len() as f32,
+                        doc.active_layer().map_or(-1.0, |l| {
+                            l.bytes().fold(0u32, |h, b| h.wrapping_mul(31).wrapping_add(b as u32)) as f32
+                        }),
+                    ]);
                     let live = self.active_stroke.as_ref().map(|s| &s.tiles_current);
 
                     if let Ok(mut renderer) = self.renderer.try_lock() {
+                        profiling::profile_scope!("matter: canvas render_frame");
                         renderer.render_frame(
                             surface.device(), surface.queue(),
                             &view, w, h, surface.format(),
