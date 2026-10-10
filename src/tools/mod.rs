@@ -16,9 +16,7 @@ pub use eyedropper::EyedropperTool;
 pub use hand::HandTool;
 
 use anyhow::Result;
-use parking_lot::Mutex;
-use std::sync::Arc;
-use pulsar_image_format::PifAssetManager;
+use crate::state::document::SharedPif;
 
 /// Trait for all painting/editing tools
 pub trait Tool: Send + Sync {
@@ -38,7 +36,7 @@ pub trait Tool: Send + Sync {
     fn on_mouse_down(
         &mut self,
         pos: Point<Pixels>,
-        pif: Arc<Mutex<PifAssetManager>>,
+        pif: SharedPif,
         brush_size: f32,
         brush_opacity: f32,
         color: [u8; 4],
@@ -55,7 +53,7 @@ pub trait Tool: Send + Sync {
     /// Handle mouse up event
     fn on_mouse_up(
         &mut self,
-        pif: Arc<Mutex<PifAssetManager>>,
+        pif: SharedPif,
         layer_id: String,
         color: [u8; 4],
     ) -> Result<Option<Box<dyn crate::state::history::Command>>>;

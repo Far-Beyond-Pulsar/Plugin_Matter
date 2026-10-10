@@ -8,13 +8,16 @@ use ui::{button::Button, IconName, Theme};
 
 use crate::state::{Document, commands::*};
 
+/// `canvas` is notified after every edit made here so it redraws (which also
+/// rebuilds the panel around it).
 pub fn render_layers_panel(
     document: Arc<RwLock<Document>>,
+    canvas: EntityId,
     theme: &Theme,
 ) -> impl IntoElement {
     let doc         = document.read();
     let active_id   = doc.active_layer().map(str::to_string);
-    let pif         = doc.pif.lock();
+    let pif         = doc.pif.read();
     let manifest    = pif.manifest();
     let layer_count = manifest.layers.len();
     let layers_vec: Vec<_> = manifest.layers.iter().cloned().collect();
@@ -52,16 +55,17 @@ pub fn render_layers_panel(
                     Button::new("add-layer")
                         .icon(IconName::Plus)
                         .tooltip(t!("Matter.AddLayer").to_string())
-                        .on_click(move |_event, _window, _cx| {
+                        .on_click(move |_event, _window, cx| {
                             let mut doc = doc_clone.write();
                             let layer_id   = format!("layer-{}", uuid::Uuid::new_v4());
                             let layer_name = format!("Layer {}", layer_count + 1);
                             let command    = CreateLayerCommand::new(
-                                doc.pif.clone(), layer_id.clone(), layer_name,
+                                doc.pif_handle(), layer_id.clone(), layer_name,
                             );
                             if doc.history.execute(Box::new(command)).is_ok() {
                                 doc.set_active_layer(layer_id);
                             }
+                            cx.notify(canvas);
                         })
                 })
         )
@@ -80,13 +84,14 @@ pub fn render_layers_panel(
                             Layer::Raster { id, .. } | Layer::Vector { id, .. } => id.as_str(),
                         }
                     });
-                    render_layer_item(document.clone(), layer, idx, is_active, theme)
+                    render_layer_item(document.clone(), canvas, layer, idx, is_active, theme)
                 }))
         )
 }
 
 fn render_layer_item(
     document:  Arc<RwLock<Document>>,
+    canvas:    EntityId,
     layer:     &pulsar_image_format::model::Layer,
     idx:       usize,
     is_active: bool,
@@ -124,8 +129,9 @@ fn render_layer_item(
         .on_mouse_down(MouseButton::Left, {
             let doc_clone = document.clone();
             let layer_id  = id.clone();
-            move |_ev, _win, _cx| {
+            move |_ev, _win, cx| {
                 doc_clone.write().set_active_layer(layer_id.clone());
+                cx.notify(canvas);
             }
         });
 
@@ -136,10 +142,11 @@ fn render_layer_item(
             let layer_id  = id.clone();
             Button::new(format!("layer-vis-{}", idx))
                 .icon(if visible { IconName::Eye } else { IconName::EyeOff })
-                .on_click(move |_ev, _win, _cx| {
+                .on_click(move |_ev, _win, cx| {
                     let mut doc = doc_clone.write();
-                    let cmd = ToggleLayerVisibilityCommand::new(doc.pif.clone(), layer_id.clone());
+                    let cmd = ToggleLayerVisibilityCommand::new(doc.pif_handle(), layer_id.clone());
                     let _ = doc.history.execute(Box::new(cmd));
+                    cx.notify(canvas);
                 })
         })
         // Layer name
@@ -157,10 +164,11 @@ fn render_layer_item(
             let layer_id  = id.clone();
             Button::new(format!("layer-del-{}", idx))
                 .icon(IconName::Trash)
-                .on_click(move |_ev, _win, _cx| {
+                .on_click(move |_ev, _win, cx| {
                     let mut doc = doc_clone.write();
-                    let cmd = DeleteLayerCommand::new(doc.pif.clone(), layer_id.clone());
+                    let cmd = DeleteLayerCommand::new(doc.pif_handle(), layer_id.clone());
                     let _ = doc.history.execute(Box::new(cmd));
+                    cx.notify(canvas);
                 })
         })
 }
