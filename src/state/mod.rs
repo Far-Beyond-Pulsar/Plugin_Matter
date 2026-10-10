@@ -7,7 +7,7 @@ pub mod tool_state;
 pub mod history;
 
 pub use commands::*;
-pub use document::Document;
+pub use document::{Document, SharedPif};
 pub use viewport::ViewportState;
 pub use tool_state::{ToolState, ActiveTool};
 pub use history::{History, Command, CommandError, CommandResult};

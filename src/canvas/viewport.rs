@@ -114,18 +114,27 @@ pub struct CanvasViewport {
     element_origin: Rc<RefCell<Point<f32>>>,
     element_size:   Rc<RefCell<[f32; 2]>>,
 
-    /// Render inputs of the last frame drawn; a change keeps the canvas animating.
-    last_sig:   Vec<f32>,
-    /// Keep requesting frames until this instant (settle window after a change).
-    busy_until: std::time::Instant,
-    /// A low-rate re-check is already scheduled.
-    poll_pending: bool,
+    /// Bumped whenever the live stroke overlay changes.
+    stroke_rev: u64,
+    /// Inputs of the last frame drawn into the surface; the GPU pass is
+    /// skipped while they are unchanged.
+    last_frame: Option<FrameKey>,
 }
 
-/// Frames are requested continuously for this long after the last input change.
-const SETTLE: std::time::Duration = std::time::Duration::from_millis(300);
-/// While idle the canvas re-checks the document (edited by other panels) at this rate.
-const IDLE_POLL: std::time::Duration = std::time::Duration::from_millis(200);
+/// Everything the surface contents depend on. The document part is its
+/// revision: every edit bumps it, and every editing site notifies this view,
+/// so an unchanged key means the surface already shows the right frame.
+/// Cursor and brush preview are drawn by the GPUI overlay, not the renderer,
+/// so hovering does not redraw the surface.
+#[derive(Clone, Copy, PartialEq)]
+struct FrameKey {
+    revision:      u64,
+    stroke_rev:    u64,
+    pan:           [f32; 2],
+    zoom:          f32,
+    viewport_size: [f32; 2],
+    surface_size:  (u32, u32),
+}
 
 impl CanvasViewport {
     pub fn new(
@@ -153,9 +162,8 @@ impl CanvasViewport {
             cursor_win:    None,
             element_origin: Rc::new(RefCell::new(Point::default())),
             element_size:   Rc::new(RefCell::new([0.0, 0.0])),
-            last_sig:   Vec::new(),
-            busy_until: std::time::Instant::now(),
-            poll_pending: false,
+            stroke_rev: 0,
+            last_frame: None,
         }
     }
 
@@ -450,6 +458,7 @@ impl CanvasViewport {
         };
         Self::stamp_sample(&mut stroke, &seed, &doc);
         self.active_stroke = Some(stroke);
+        self.stroke_rev += 1;
     }
 
     /// Continue an active stroke to `canvas_pos`.
@@ -464,12 +473,14 @@ impl CanvasViewport {
             );
             Self::stamp_segment(stroke, from, smooth_pos, &doc);
             stroke.last_pos = Some(smooth_pos);
+            self.stroke_rev += 1;
         }
     }
 
     /// Finish the stroke: persist direction, commit to PIF, push undo entry.
     fn finish_stroke(&mut self) {
         let Some(stroke) = self.active_stroke.take() else { return };
+        self.stroke_rev += 1;
 
         // Persist the stroke's final direction so the next stroke starts
         // oriented the same way (matches professional app behaviour).
@@ -479,13 +490,13 @@ impl CanvasViewport {
         if stroke.tiles_current.is_empty() { return; }
 
         let mut doc = self.document.write();
-        // Write live tiles to PIF.
-        let _ = doc.pif.lock().commit_changes(stroke.tiles_current.clone());
+        // Write live tiles to PIF (bumps the document revision).
+        let _ = doc.pif.write().commit_changes(stroke.tiles_current.clone());
         doc.mark_dirty();
 
         // Register for undo — the changes are already applied so we use push_executed.
         let cmd = PaintStrokeCommand::from_tiles(
-            doc.pif.clone(),
+            doc.pif_handle(),
             stroke.tiles_before,
             stroke.tiles_current,
         );
@@ -504,6 +515,7 @@ impl CanvasViewport {
         };
         let painting = self.active_stroke.is_some();
         let theme    = cx.theme().clone();
+        let view_id  = cx.entity_id();
 
         gpui::canvas(
             |_bounds, _win, _cx| {},
@@ -513,7 +525,11 @@ impl CanvasViewport {
                 let sw = f32::from(bounds.size.width);
                 let sh = f32::from(bounds.size.height);
                 *origin_rc.borrow_mut() = Point::new(ox, oy);
-                *size_rc.borrow_mut()   = [sw, sh];
+                // The surface frame was drawn with last frame's size; redraw
+                // next frame at the size layout just settled on.
+                if std::mem::replace(&mut *size_rc.borrow_mut(), [sw, sh]) != [sw, sh] {
+                    window.on_next_frame(move |_, cx| cx.notify(view_id));
+                }
 
                 let Some(cw) = cursor_win else { return };
                 let wx = cw.x;
@@ -563,8 +579,6 @@ impl EventEmitter<()> for CanvasViewport {}
 
 impl Render for CanvasViewport {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let mut frame_sig: Option<Vec<f32>> = None;
-
         // ── Lazy WgpuSurface creation ──────────────────────────────────────
         if self.surface.is_none() {
             match window.create_wgpu_surface(1600, 900, SURFACE_FMT) {
@@ -577,51 +591,45 @@ impl Render for CanvasViewport {
         }
 
         // ── Render frame into back buffer ──────────────────────────────────
+        // Only when something the frame depends on changed: this runs on every
+        // rebuild of the enclosing panel (hover, pickers, sliders, ...), and an
+        // unchanged frame is already on screen.
         if let Some(ref surface) = self.surface {
-            if !surface.is_resize_pending() {
-                if let Some((view, (w, h))) = surface.back_view_with_size() {
-                    let (canvas_w, canvas_h) = self.document.read().dimensions();
-                    let doc = self.document.read();
+            if surface.is_resize_pending() {
+                // Buffers are reallocated off-thread and nothing wakes us when
+                // they are ready, so keep checking until the new size lands.
+                // The new buffers start blank even if the size ends up where
+                // it was, so the next frame must draw.
+                self.last_frame = None;
+                window.request_animation_frame();
+            } else if let Some((view, (w, h))) = surface.back_view_with_size() {
+                let doc = self.document.read();
+                // Read before any document data so a racing edit can only
+                // cause an extra frame, never a missed one.
+                let revision = doc.revision();
+                let (canvas_w, canvas_h) = doc.dimensions();
 
-                    let cursor_local = self.cursor_win.map(|cw| {
-                        let local = self.to_local(cw);
-                        [local.x, local.y]
-                    });
+                // Logical display size from GPUI layout bounds.
+                // This is the same coordinate space as mouse events and pan
+                // offsets — critical for correct brush position calculation.
+                let viewport_size = *self.element_size.borrow();
 
-                    // Logical display size from GPUI layout bounds.
-                    // This is the same coordinate space as mouse events and pan
-                    // offsets — critical for correct brush position calculation.
-                    let viewport_size = *self.element_size.borrow();
+                let key = FrameKey {
+                    revision,
+                    stroke_rev:   self.stroke_rev,
+                    pan:          [self.pan.x, self.pan.y],
+                    zoom:         self.zoom,
+                    viewport_size,
+                    surface_size: (w, h),
+                };
 
+                if self.last_frame != Some(key) {
                     let input = CanvasRenderInput {
-                        pan_offset:        [self.pan.x, self.pan.y],
-                        zoom:              self.zoom,
-                        canvas_size:       [canvas_w as f32, canvas_h as f32],
+                        pan_offset:    key.pan,
+                        zoom:          self.zoom,
+                        canvas_size:   [canvas_w as f32, canvas_h as f32],
                         viewport_size,
-                        cursor_screen_pos: cursor_local,
-                        brush_radius:      doc.tool_state.brush_size * 0.5 * self.zoom,
-                        brush_color:       {
-                            let c = doc.tool_state.foreground_color;
-                            [c.r, c.g, c.b, c.a]
-                        },
                     };
-
-                    frame_sig = Some(vec![
-                        input.pan_offset[0], input.pan_offset[1], input.zoom,
-                        input.canvas_size[0], input.canvas_size[1],
-                        input.viewport_size[0], input.viewport_size[1],
-                        input.cursor_screen_pos.map_or(-1.0, |c| c[0]),
-                        input.cursor_screen_pos.map_or(-1.0, |c| c[1]),
-                        input.brush_radius,
-                        input.brush_color[0], input.brush_color[1],
-                        input.brush_color[2], input.brush_color[3],
-                        doc.history.undo_count() as f32,
-                        doc.history.redo_count() as f32,
-                        doc.layers().len() as f32,
-                        doc.active_layer().map_or(-1.0, |l| {
-                            l.bytes().fold(0u32, |h, b| h.wrapping_mul(31).wrapping_add(b as u32)) as f32
-                        }),
-                    ]);
                     let live = self.active_stroke.as_ref().map(|s| &s.tiles_current);
 
                     if let Ok(mut renderer) = self.renderer.try_lock() {
@@ -629,11 +637,14 @@ impl Render for CanvasViewport {
                         renderer.render_frame(
                             surface.device(), surface.queue(),
                             &view, w, h, surface.format(),
-                            &input, &doc, live,
+                            &input, &doc, revision, live,
                         );
+                        drop(view);
+                        surface.swap_buffers();
+                        self.last_frame = Some(key);
+                    } else {
+                        window.request_animation_frame();
                     }
-                    drop(view);
-                    surface.swap_buffers();
                 }
             }
         }
@@ -689,7 +700,7 @@ impl Render for CanvasViewport {
                 this.mid_win_start  = None;
             }))
             // Left-click → paint / erase / pan (Hand tool)
-            .on_mouse_down(MouseButton::Left, cx.listener(|this, ev: &MouseDownEvent, _win, _cx| {
+            .on_mouse_down(MouseButton::Left, cx.listener(|this, ev: &MouseDownEvent, _win, cx| {
                 let w    = Self::win_f32(ev.position);
                 let tool = this.document.read().tool_state.active_tool;
                 match tool {
@@ -702,13 +713,17 @@ impl Render for CanvasViewport {
                         let local      = this.to_local(w);
                         let canvas_pos = this.canvas_of_local(local);
                         this.start_stroke(canvas_pos);
+                        cx.notify();
                     }
                     _ => {}
                 }
             }))
-            .on_mouse_up(MouseButton::Left, cx.listener(|this, _ev: &MouseUpEvent, _win, _cx| {
+            .on_mouse_up(MouseButton::Left, cx.listener(|this, _ev: &MouseUpEvent, _win, cx| {
                 if this.active_stroke.is_some() {
+                    // Commits to PIF and pushes history: the toolbar's undo
+                    // state changes, so rebuild.
                     this.finish_stroke();
+                    cx.notify();
                 }
                 this.is_panning    = false;
                 this.pan_win_start = None;

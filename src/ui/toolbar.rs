@@ -8,9 +8,12 @@ use ui::{button::{Button, ButtonVariants}, IconName, Theme};
 
 use crate::state::{Document, ActiveTool};
 
+/// `canvas` is notified after undo/redo so it redraws (which also rebuilds
+/// the panel around it).
 pub fn render_toolbar(
     doc: &Document,
     document: Arc<RwLock<Document>>,
+    canvas: EntityId,
     theme: &Theme,
 ) -> impl IntoElement {
     let can_undo    = !doc.history.is_empty_undo();
@@ -32,8 +35,9 @@ pub fn render_toolbar(
             let doc_undo = document.clone();
             let mut btn = Button::new("undo").icon(IconName::Undo).tooltip(t!("Matter.Undo").to_string());
             if can_undo {
-                btn = btn.on_click(move |_, _, _| {
+                btn = btn.on_click(move |_, _, cx| {
                     let _ = doc_undo.write().history.undo();
+                    cx.notify(canvas);
                 });
             }
             btn
@@ -42,8 +46,9 @@ pub fn render_toolbar(
             let doc_redo = document.clone();
             let mut btn = Button::new("redo").icon(IconName::Redo).tooltip(t!("Matter.Redo").to_string());
             if can_redo {
-                btn = btn.on_click(move |_, _, _| {
+                btn = btn.on_click(move |_, _, cx| {
                     let _ = doc_redo.write().history.redo();
+                    cx.notify(canvas);
                 });
             }
             btn

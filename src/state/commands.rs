@@ -1,16 +1,17 @@
 //! Command implementations for undo/redo
+//!
+//! Commands mutate through [`SharedPif::write`], so every execute/undo/redo
+//! bumps the document revision.
 
+use super::document::SharedPif;
 use super::history::{Command, CommandResult, CommandError};
-use pulsar_image_format::PifAssetManager;
 use pulsar_image_format::model::Layer;
 use std::collections::HashMap;
-use std::sync::Arc;
-use parking_lot::Mutex;
 
 /// Paint stroke command — stores full before/after tile snapshots so the
 /// stroke can be undone/redone without re-rasterizing.
 pub struct PaintStrokeCommand {
-    pif: Arc<Mutex<PifAssetManager>>,
+    pif: SharedPif,
     /// (layer_id, tile_x, tile_y) → pixel data
     tiles_before: HashMap<(String, u32, u32), Vec<u8>>,
     tiles_after:  HashMap<(String, u32, u32), Vec<u8>>,
@@ -21,7 +22,7 @@ impl PaintStrokeCommand {
     /// The caller is responsible for having already written `tiles_after`
     /// to PIF via `commit_changes`; this command only handles undo/redo.
     pub fn from_tiles(
-        pif: Arc<Mutex<PifAssetManager>>,
+        pif: SharedPif,
         tiles_before: HashMap<(String, u32, u32), Vec<u8>>,
         tiles_after:  HashMap<(String, u32, u32), Vec<u8>>,
     ) -> Self {
@@ -39,13 +40,13 @@ impl std::fmt::Debug for PaintStrokeCommand {
 
 impl Command for PaintStrokeCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        self.pif.lock()
+        self.pif.write()
             .commit_changes(self.tiles_after.clone())
             .map_err(|e| CommandError::ExecutionFailed(e.to_string()))
     }
 
     fn undo(&mut self) -> CommandResult<()> {
-        self.pif.lock()
+        self.pif.write()
             .commit_changes(self.tiles_before.clone())
             .map_err(|e| CommandError::UndoFailed(e.to_string()))
     }
@@ -55,14 +56,14 @@ impl Command for PaintStrokeCommand {
 
 /// Create layer command
 pub struct CreateLayerCommand {
-    pif: Arc<Mutex<PifAssetManager>>,
+    pif: SharedPif,
     layer_id: String,
     layer_name: String,
 }
 
 impl CreateLayerCommand {
     pub fn new(
-        pif: Arc<Mutex<PifAssetManager>>,
+        pif: SharedPif,
         layer_id: String,
         layer_name: String,
     ) -> Self {
@@ -85,7 +86,7 @@ impl std::fmt::Debug for CreateLayerCommand {
 
 impl Command for CreateLayerCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock();
+        let mut pif = self.pif.write();
         
         let new_layer = Layer::Raster {
             id: self.layer_id.clone(),
@@ -102,7 +103,7 @@ impl Command for CreateLayerCommand {
     }
     
     fn undo(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock();
+        let mut pif = self.pif.write();
         let manifest = pif.manifest_mut();
         
         if let Some(pos) = manifest.layers.iter().position(|l| {
@@ -124,14 +125,14 @@ impl Command for CreateLayerCommand {
 
 /// Delete layer command
 pub struct DeleteLayerCommand {
-    pif: Arc<Mutex<PifAssetManager>>,
+    pif: SharedPif,
     layer_id: String,
     layer_backup: Option<Layer>,
     layer_index: Option<usize>,
 }
 
 impl DeleteLayerCommand {
-    pub fn new(pif: Arc<Mutex<PifAssetManager>>, layer_id: String) -> Self {
+    pub fn new(pif: SharedPif, layer_id: String) -> Self {
         Self {
             pif,
             layer_id,
@@ -151,7 +152,7 @@ impl std::fmt::Debug for DeleteLayerCommand {
 
 impl Command for DeleteLayerCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock();
+        let mut pif = self.pif.write();
         let manifest = pif.manifest_mut();
         
         if let Some(pos) = manifest.layers.iter().position(|l| {
@@ -169,7 +170,7 @@ impl Command for DeleteLayerCommand {
     
     fn undo(&mut self) -> CommandResult<()> {
         if let (Some(layer), Some(index)) = (self.layer_backup.take(), self.layer_index) {
-            let mut pif = self.pif.lock();
+            let mut pif = self.pif.write();
             pif.manifest_mut().layers.insert(index, layer);
             Ok(())
         } else {
@@ -184,12 +185,12 @@ impl Command for DeleteLayerCommand {
 
 /// Toggle layer visibility command
 pub struct ToggleLayerVisibilityCommand {
-    pif: Arc<Mutex<PifAssetManager>>,
+    pif: SharedPif,
     layer_id: String,
 }
 
 impl ToggleLayerVisibilityCommand {
-    pub fn new(pif: Arc<Mutex<PifAssetManager>>, layer_id: String) -> Self {
+    pub fn new(pif: SharedPif, layer_id: String) -> Self {
         Self { pif, layer_id }
     }
 }
@@ -204,7 +205,7 @@ impl std::fmt::Debug for ToggleLayerVisibilityCommand {
 
 impl Command for ToggleLayerVisibilityCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock();
+        let mut pif = self.pif.write();
         let manifest = pif.manifest_mut();
         
         for layer in &mut manifest.layers {
@@ -233,14 +234,14 @@ impl Command for ToggleLayerVisibilityCommand {
 
 /// Set layer opacity command
 pub struct SetLayerOpacityCommand {
-    pif: Arc<Mutex<PifAssetManager>>,
+    pif: SharedPif,
     layer_id: String,
     new_opacity: f32,
     old_opacity: Option<f32>,
 }
 
 impl SetLayerOpacityCommand {
-    pub fn new(pif: Arc<Mutex<PifAssetManager>>, layer_id: String, opacity: f32) -> Self {
+    pub fn new(pif: SharedPif, layer_id: String, opacity: f32) -> Self {
         Self {
             pif,
             layer_id,
@@ -261,7 +262,7 @@ impl std::fmt::Debug for SetLayerOpacityCommand {
 
 impl Command for SetLayerOpacityCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock();
+        let mut pif = self.pif.write();
         let manifest = pif.manifest_mut();
         
         for layer in &mut manifest.layers {
@@ -281,7 +282,7 @@ impl Command for SetLayerOpacityCommand {
     
     fn undo(&mut self) -> CommandResult<()> {
         if let Some(old) = self.old_opacity {
-            let mut pif = self.pif.lock();
+            let mut pif = self.pif.write();
             let manifest = pif.manifest_mut();
             
             for layer in &mut manifest.layers {
@@ -306,13 +307,13 @@ impl Command for SetLayerOpacityCommand {
 
 /// Reorder layers command
 pub struct ReorderLayersCommand {
-    pif: Arc<Mutex<PifAssetManager>>,
+    pif: SharedPif,
     from_index: usize,
     to_index: usize,
 }
 
 impl ReorderLayersCommand {
-    pub fn new(pif: Arc<Mutex<PifAssetManager>>, from: usize, to: usize) -> Self {
+    pub fn new(pif: SharedPif, from: usize, to: usize) -> Self {
         Self {
             pif,
             from_index: from,
@@ -332,7 +333,7 @@ impl std::fmt::Debug for ReorderLayersCommand {
 
 impl Command for ReorderLayersCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        let mut pif = self.pif.lock();
+        let mut pif = self.pif.write();
         let layers = &mut pif.manifest_mut().layers;
         
         if self.from_index >= layers.len() || self.to_index >= layers.len() {

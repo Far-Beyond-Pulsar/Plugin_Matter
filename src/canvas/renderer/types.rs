@@ -13,10 +13,6 @@ pub struct CanvasRenderInput {
     /// This is used as the shader viewport so that mouse coordinates
     /// (also in logical pixels) stay in the same space as pan/zoom.
     pub viewport_size: [f32; 2],
-    /// Cursor position in screen pixels (None if outside viewport).
-    pub cursor_screen_pos: Option<[f32; 2]>,
-    /// Brush radius in screen pixels.
-    pub brush_radius: f32,
-    /// Cursor color (RGBA, each component 0..1).
-    pub brush_color: [f32; 4],
+    // Cursor and brush preview are drawn by the GPUI overlay in
+    // `CanvasViewport`, so they are not renderer inputs.
 }

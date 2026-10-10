@@ -151,6 +151,7 @@ impl Focusable for MatterEditorPanel {
 impl Render for MatterEditorPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
+        let canvas_id = self.canvas.entity_id();
 
         div()
             .size_full()
@@ -159,14 +160,14 @@ impl Render for MatterEditorPanel {
             .bg(theme.background)
             .child({
                 let doc = self.document.read();
-                render_toolbar(&doc, self.document.clone(), theme)
+                render_toolbar(&doc, self.document.clone(), canvas_id, theme)
             })
             .child(
                 div()
                     .flex()
                     .flex_1()
                     .min_h_0()
-                    .child(render_layers_panel(self.document.clone(), theme))
+                    .child(render_layers_panel(self.document.clone(), canvas_id, theme))
                     .child(
                         div()
                             .flex_1()

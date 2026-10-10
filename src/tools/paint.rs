@@ -2,9 +2,7 @@
 
 use anyhow::Result;
 use gpui::*;
-use parking_lot::Mutex;
-use std::sync::Arc;
-use pulsar_image_format::PifAssetManager;
+use crate::state::document::SharedPif;
 use ui::IconName;
 
 use crate::canvas::stroke::Stroke;
@@ -41,7 +39,7 @@ impl Tool for PaintTool {
     fn on_mouse_down(
         &mut self,
         pos: Point<Pixels>,
-        _pif: Arc<Mutex<PifAssetManager>>,
+        _pif: SharedPif,
         brush_size: f32,
         brush_opacity: f32,
         color: [u8; 4],
@@ -72,7 +70,7 @@ impl Tool for PaintTool {
     
     fn on_mouse_up(
         &mut self,
-        _pif: Arc<Mutex<PifAssetManager>>,
+        _pif: SharedPif,
         _layer_id: String,
         _color: [u8; 4],
     ) -> Result<Option<Box<dyn crate::state::history::Command>>> {

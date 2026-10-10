@@ -61,10 +61,10 @@ struct LayerGpu {
     bind_group: wgpu::BindGroup,
     width:      u32,
     height:     u32,
-    /// History position the texture was last composited at. The composite is
-    /// rebuilt tile-by-tile, so the pass is skipped while this is
-    /// unchanged and no live stroke overlay touches the layer.
-    synced_rev: Option<(usize, usize)>,
+    /// Document revision the texture was last fully synced at. While it is
+    /// current the full pass (which loads every tile from PIF) is skipped;
+    /// a live stroke then only uploads its own tiles.
+    synced_rev: Option<u64>,
     /// The last upload included live stroke tiles (needs one refresh after).
     had_live:   bool,
     /// Hash of the content last uploaded per tile (`None` = empty); drives delta upload.
@@ -103,6 +103,7 @@ impl CanvasRenderer {
     }
 
     /// Render one frame into `view`.
+    /// `revision` is `document.revision()`, read before any document data.
     /// `live_tiles` contains tiles modified during an active stroke that have
     /// not yet been committed to PIF — they override the PIF data for display.
     pub fn render_frame(
@@ -115,6 +116,7 @@ impl CanvasRenderer {
         format: wgpu::TextureFormat,
         input:  &CanvasRenderInput,
         document: &Document,
+        revision: u64,
         live_tiles: Option<&HashMap<(String, u32, u32), Vec<u8>>>,
     ) {
         if self.state.is_none() {
@@ -153,7 +155,7 @@ impl CanvasRenderer {
         queue.write_buffer(&state.tile_uniform_buf, 0, as_bytes(&tile_u));
 
         // ── Sync layer textures (PIF data + live stroke overlay) ──────────
-        Self::sync_layers(state, device, queue, document, live_tiles);
+        Self::sync_layers(state, device, queue, document, revision, live_tiles);
 
         // ── Build render pass ──────────────────────────────────────────────
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -246,6 +248,7 @@ impl CanvasRenderer {
         device:     &wgpu::Device,
         queue:      &wgpu::Queue,
         document:   &Document,
+        revision:   u64,
         live_tiles: Option<&HashMap<(String, u32, u32), Vec<u8>>>,
     ) {
         let (canvas_w, canvas_h) = document.dimensions();
@@ -294,13 +297,15 @@ impl CanvasRenderer {
                 });
             }
 
-            let rev = (document.history.undo_count(), document.history.redo_count());
             let live_here = live_tiles.is_some_and(|m| m.keys().any(|k| k.0 == id));
-            if let Some(g) = state.layer_gpu.get(&id) {
-                if g.synced_rev == Some(rev) && !live_here && !g.had_live {
-                    continue;
-                }
+            let (current, had_live) = state.layer_gpu.get(&id)
+                .map_or((false, false), |g| (g.synced_rev == Some(revision), g.had_live));
+            if current && !live_here && !had_live {
+                continue;
             }
+            // Document unchanged since the last full sync: only the stroke's
+            // own tiles can differ, so don't read the rest back from PIF.
+            let live_only = current && live_here;
             // Delta upload: hash every tile and write only the ones whose
             // content differs from what the texture already holds.
             let Some(layer_gpu) = state.layer_gpu.get_mut(&id) else { continue };
@@ -312,13 +317,14 @@ impl CanvasRenderer {
             let (mut uploaded, mut total) = (0u32, 0u32);
             for ty in 0..tiles_y {
                 for tx in 0..tiles_x {
-                    total += 1;
                     // Prefer live stroke data over committed PIF data so brushstrokes
                     // appear immediately during painting.
                     let tile_data: Option<Vec<u8>> = match live_tiles.and_then(|l| l.get(&(id.clone(), tx, ty))) {
                         Some(d) => Some(d.clone()),
+                        None if live_only => continue,
                         None => document.load_tile(&id, tx, ty).ok(),
                     };
+                    total += 1;
                     let tile_data = tile_data.filter(|d| !d.is_empty());
 
                     // `None` = empty tile. The texture starts transparent, so an
@@ -367,7 +373,7 @@ impl CanvasRenderer {
                 }
             }
             tracing::trace!("[matter] layer {id}: uploaded {uploaded}/{total} tiles");
-            layer_gpu.synced_rev = Some(rev);
+            layer_gpu.synced_rev = Some(revision);
             layer_gpu.had_live = live_here;
         }
 

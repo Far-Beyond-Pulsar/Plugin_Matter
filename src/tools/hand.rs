@@ -2,9 +2,7 @@
 
 use anyhow::Result;
 use gpui::*;
-use parking_lot::Mutex;
-use std::sync::Arc;
-use pulsar_image_format::PifAssetManager;
+use crate::state::document::SharedPif;
 use ui::IconName;
 
 use crate::tools::Tool;
@@ -39,7 +37,7 @@ impl Tool for HandTool {
     fn on_mouse_down(
         &mut self,
         pos: Point<Pixels>,
-        _pif: Arc<Mutex<PifAssetManager>>,
+        _pif: SharedPif,
         _brush_size: f32,
         _brush_opacity: f32,
         _color: [u8; 4],
@@ -71,7 +69,7 @@ impl Tool for HandTool {
     
     fn on_mouse_up(
         &mut self,
-        _pif: Arc<Mutex<PifAssetManager>>,
+        _pif: SharedPif,
         _layer_id: String,
         _color: [u8; 4],
     ) -> Result<Option<Box<dyn crate::state::history::Command>>> {
