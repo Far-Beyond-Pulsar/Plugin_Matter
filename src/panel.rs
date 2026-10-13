@@ -144,6 +144,29 @@ impl Panel for MatterEditorPanel {
 
 impl EventEmitter<PanelEvent> for MatterEditorPanel {}
 
+impl MatterEditorPanel {
+    /// Register the document's history with the host's undo histories
+    /// (Pulsar-Native#931), so the host's Edit menu and Undo/Redo reach it.
+    pub fn set_undo_service(&mut self, service: plugin_editor_api::UndoService) {
+        let doc = self.document.read();
+        if let Some(path) = doc.path() {
+            doc.history.register(&service, path);
+        }
+    }
+
+    fn undo(&mut self, cx: &mut Context<Self>) {
+        let _ = self.document.write().history.undo();
+        self.canvas.update(cx, |_, cx| cx.notify());
+        cx.notify();
+    }
+
+    fn redo(&mut self, cx: &mut Context<Self>) {
+        let _ = self.document.write().history.redo();
+        self.canvas.update(cx, |_, cx| cx.notify());
+        cx.notify();
+    }
+}
+
 impl Focusable for MatterEditorPanel {
     fn focus_handle(&self, _cx: &App) -> FocusHandle { self.focus_handle.clone() }
 }
@@ -158,9 +181,14 @@ impl Render for MatterEditorPanel {
             .flex()
             .flex_col()
             .bg(theme.background)
+            .track_focus(&self.focus_handle)
+            // The host's shared Undo/Redo (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z,
+            // Ctrl+Y) and the Edit menu, for this document (#931).
+            .on_action(cx.listener(|this, _: &plugin_editor_api::Undo, _, cx| this.undo(cx)))
+            .on_action(cx.listener(|this, _: &plugin_editor_api::Redo, _, cx| this.redo(cx)))
             .child({
                 let doc = self.document.read();
-                render_toolbar(&doc, self.document.clone(), canvas_id, theme)
+                render_toolbar(&doc, self.document.clone(), canvas_id, self.focus_handle.clone(), theme)
             })
             .child(
                 div()

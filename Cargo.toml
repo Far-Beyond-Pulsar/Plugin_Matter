@@ -12,6 +12,10 @@ profiling = { path = "../../../crates/profiling" }
 gpui-ce = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI", rev = "31fbf35800b4cfc2ddf202a1c16a2971251ca84c" }
 ui      = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI-Component", rev = "eda5213258be50bf5a9556ff9a68221bd5f449cd" }
 
+# The host's editor API: the shared undo history and its Undo/Redo actions
+# (Pulsar-Native#931), and the editor menu strip (#1012).
+plugin_editor_api = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "6c61db9aacb29efc4a49bc23a7b1622eb6510a61" }
+
 # PIF Image Format
 pulsar_image_format = { git = "https://github.com/Far-Beyond-Pulsar/PIF-rs", rev = "c2cd8c4dfc49e12bebd76812308a7dda1f851452" }
 
@@ -41,3 +45,13 @@ rustc_version = "0.4"
 
 [features]
 plugin = []
+
+# Resolve GPUI through the same Pulsar revision as plugin_editor_api, so its
+# public types keep one package identity in a standalone build. (Inside
+# Pulsar-Native the workspace's own [patch] maps these to its checkout.)
+[patch."https://github.com/Far-Beyond-Pulsar/WGPUI"]
+gpui-ce = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "6c61db9aacb29efc4a49bc23a7b1622eb6510a61" }
+
+[patch."https://github.com/Far-Beyond-Pulsar/WGPUI-Component"]
+ui = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "6c61db9aacb29efc4a49bc23a7b1622eb6510a61" }
+ui-macros = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "6c61db9aacb29efc4a49bc23a7b1622eb6510a61" }

@@ -14,4 +14,7 @@ Matter.Colors: Colors
 Matter.NewLayer: + New Layer
 Matter.Undo: Undo (Cmd+Z)
 Matter.Redo: Redo (Cmd+Shift+Z)
+Matter.Menu.Edit: Edit
+Matter.Menu.Undo: Undo
+Matter.Menu.Redo: Redo
 Matter.Zoom100: 100%

@@ -14,6 +14,7 @@ pub fn render_toolbar(
     doc: &Document,
     document: Arc<RwLock<Document>>,
     canvas: EntityId,
+    focus: FocusHandle,
     theme: &Theme,
 ) -> impl IntoElement {
     let can_undo    = !doc.history.is_empty_undo();
@@ -30,6 +31,17 @@ pub fn render_toolbar(
         .items_center()
         .px_2()
         .gap_1()
+        // ── Edit menu (Pulsar-Native#1012): Undo/Redo, named for the step ──
+        .child(
+            plugin_editor_api::EditorMenuStrip::new("matter-editor-menus")
+                .menu(plugin_editor_api::EditorMenu::new(t!("Matter.Menu.Edit").to_string()).undo_redo(
+                    t!("Matter.Menu.Undo").to_string(),
+                    t!("Matter.Menu.Redo").to_string(),
+                    Some(doc.history.shared().clone() as _),
+                ))
+                .action_context(focus),
+        )
+        .child(separator(theme))
         // ── History ────────────────────────────────────────────────────────
         .child({
             let doc_undo = document.clone();
