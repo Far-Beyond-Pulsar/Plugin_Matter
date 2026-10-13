@@ -1,6 +1,10 @@
 //! Undo/redo history system with command pattern
 
 use std::fmt;
+use std::sync::{Arc, Mutex};
+
+use plugin_editor_api::undo::lock;
+use plugin_editor_api::SharedHistory;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -33,122 +37,131 @@ pub trait Command: Send + Sync + fmt::Debug {
     fn description(&self) -> &str;
 }
 
-/// History manager with undo/redo stacks
+/// One history entry: a command already applied to the document.
+#[derive(Debug)]
+pub struct MatterEdit(Box<dyn Command>);
+
+impl plugin_editor_api::UndoEntry for MatterEdit {
+    fn label(&self) -> String {
+        self.0.description().to_string()
+    }
+}
+
+/// The document's undo history: the host's shared history type
+/// (`plugin_editor_api::undo`, Pulsar-Native#931), registered with the
+/// host's undo service by [`Self::register`] so the Edit menu and the
+/// shared Undo/Redo actions reach it.
 pub struct History {
-    /// Stack of executed commands that can be undone
-    undo_stack: Vec<Box<dyn Command>>,
-    
-    /// Stack of undone commands that can be redone
-    redo_stack: Vec<Box<dyn Command>>,
-    
-    /// Maximum number of commands to keep in history
-    max_size: usize,
+    shared: SharedHistory<MatterEdit>,
 }
 
 impl History {
     /// Create a new history manager
     pub fn new(max_size: usize) -> Self {
         Self {
-            undo_stack: Vec::new(),
-            redo_stack: Vec::new(),
-            max_size,
+            shared: Arc::new(Mutex::new(plugin_editor_api::History::with_capacity(max_size))),
         }
     }
-    
+
+    /// The history as the host and the Edit menu see it.
+    pub fn shared(&self) -> &SharedHistory<MatterEdit> {
+        &self.shared
+    }
+
+    /// Register this history with the host's undo service under the
+    /// document at `path`.
+    pub fn register(&self, service: &plugin_editor_api::UndoService, path: &std::path::Path) {
+        service.adopt(&plugin_editor_api::DocumentId::for_path(path), &self.shared);
+    }
+
     /// Execute a command and add it to history
     pub fn execute(&mut self, mut command: Box<dyn Command>) -> CommandResult<()> {
         command.execute()?;
-        
-        // Clear redo stack when new command is executed
-        self.redo_stack.clear();
-        
-        // Add to undo stack
-        self.undo_stack.push(command);
-        
-        // Limit stack size
-        if self.undo_stack.len() > self.max_size {
-            self.undo_stack.remove(0);
-        }
-        
+        self.push_executed(command);
         Ok(())
     }
-    
-    /// Undo the last command
+
+    /// Undo the last command. A command that fails to undo is dropped
+    /// (with the redo stack), as the shared history does.
     pub fn undo(&mut self) -> CommandResult<()> {
-        if let Some(mut command) = self.undo_stack.pop() {
-            command.undo()?;
-            self.redo_stack.push(command);
-            Ok(())
-        } else {
-            Err(CommandError::UndoFailed("Nothing to undo".to_string()))
+        let mut failed = None;
+        let undone = lock(&self.shared).undo(|edit| match edit.0.undo() {
+            Ok(()) => true,
+            Err(error) => {
+                failed = Some(error);
+                false
+            }
+        });
+        match (undone, failed) {
+            (Some(_), _) => Ok(()),
+            (None, Some(error)) => Err(error),
+            (None, None) => Err(CommandError::UndoFailed("Nothing to undo".to_string())),
         }
     }
-    
+
     /// Redo the last undone command
     pub fn redo(&mut self) -> CommandResult<()> {
-        if let Some(mut command) = self.redo_stack.pop() {
-            command.redo()?;
-            self.undo_stack.push(command);
-            Ok(())
-        } else {
-            Err(CommandError::ExecutionFailed("Nothing to redo".to_string()))
+        let mut failed = None;
+        let redone = lock(&self.shared).redo(|edit| match edit.0.redo() {
+            Ok(()) => true,
+            Err(error) => {
+                failed = Some(error);
+                false
+            }
+        });
+        match (redone, failed) {
+            (Some(_), _) => Ok(()),
+            (None, Some(error)) => Err(error),
+            (None, None) => Err(CommandError::ExecutionFailed("Nothing to redo".to_string())),
         }
     }
-    
+
     /// Check if undo stack is empty
     pub fn is_empty_undo(&self) -> bool {
-        self.undo_stack.is_empty()
+        !self.can_undo()
     }
-    
+
     /// Check if redo stack is empty
     pub fn is_empty_redo(&self) -> bool {
-        self.redo_stack.is_empty()
+        !self.can_redo()
     }
-    
+
     /// Check if there are commands to undo
     pub fn can_undo(&self) -> bool {
-        !self.undo_stack.is_empty()
+        lock(&self.shared).can_undo()
     }
-    
+
     /// Check if there are commands to redo
     pub fn can_redo(&self) -> bool {
-        !self.redo_stack.is_empty()
+        lock(&self.shared).can_redo()
     }
-    
+
     /// Get the description of the next undo command
-    pub fn undo_description(&self) -> Option<&str> {
-        self.undo_stack.last().map(|cmd| cmd.description())
+    pub fn undo_description(&self) -> Option<String> {
+        lock(&self.shared).undo_label()
     }
-    
+
     /// Get the description of the next redo command
-    pub fn redo_description(&self) -> Option<&str> {
-        self.redo_stack.last().map(|cmd| cmd.description())
+    pub fn redo_description(&self) -> Option<String> {
+        lock(&self.shared).redo_label()
     }
-    
+
     /// Push a command that has *already been applied* to the document.
     /// Skips calling `execute()`; only registers it for undo.
     pub fn push_executed(&mut self, command: Box<dyn Command>) {
-        self.redo_stack.clear();
-        self.undo_stack.push(command);
-        if self.undo_stack.len() > self.max_size {
-            self.undo_stack.remove(0);
-        }
+        let mut history = lock(&self.shared);
+        history.push(MatterEdit(command));
+        history.seal();
     }
 
     /// Clear all history
     pub fn clear(&mut self) {
-        self.undo_stack.clear();
-        self.redo_stack.clear();
+        lock(&self.shared).clear();
     }
-    
+
     /// Get the number of commands in undo stack
     pub fn undo_count(&self) -> usize {
-        self.undo_stack.len()
-    }
-    
-    /// Get the number of commands in redo stack
-    pub fn redo_count(&self) -> usize {
-        self.redo_stack.len()
+        lock(&self.shared).len()
     }
 }
 
