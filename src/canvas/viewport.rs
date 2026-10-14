@@ -580,8 +580,22 @@ impl EventEmitter<()> for CanvasViewport {}
 impl Render for CanvasViewport {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // ── Lazy WgpuSurface creation ──────────────────────────────────────
+        // The GPU device was lost: the surface and the renderer's resources
+        // are on it. Start over on the window's new device.
+        if self
+            .surface
+            .as_ref()
+            .is_some_and(gpui::WgpuSurfaceHandle::is_device_lost)
+        {
+            tracing::warn!("[CanvasViewport] GPU device lost; rebuilding on the new device");
+            self.surface = None;
+            self.renderer = Arc::new(Mutex::new(CanvasRenderer::new()));
+        }
         if self.surface.is_none() {
             match window.create_wgpu_surface(1600, 900, SURFACE_FMT) {
+                // Until the window has a new device, a new surface is on the
+                // lost one too; the window renders every view again once it has.
+                Some(s) if s.is_device_lost() => {}
                 Some(s) => {
                     tracing::info!("[CanvasViewport] WgpuSurface created");
                     self.surface = Some(s);
