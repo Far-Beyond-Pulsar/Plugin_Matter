@@ -7,6 +7,9 @@ edition = "2021"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
+# The plugin's descriptor and its editor provider's registration.
+pulsar_plugins = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "c49f7b393afe468aec47895c3f159a7451d23963" }
+plugin_manager = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "c49f7b393afe468aec47895c3f159a7451d23963" }
 profiling = { path = "../../../crates/profiling" }
 # GPUI Framework
 gpui-ce = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI", rev = "31fbf35800b4cfc2ddf202a1c16a2971251ca84c" }
