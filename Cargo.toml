@@ -8,8 +8,8 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 # The plugin's descriptor and its editor provider's registration.
-pulsar_plugins = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "c49f7b393afe468aec47895c3f159a7451d23963" }
-plugin_manager = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "c49f7b393afe468aec47895c3f159a7451d23963" }
+pulsar_plugins = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "838f6accad39dc4c1bd9016fca7f9867a06cbe73" }
+plugin_manager = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "838f6accad39dc4c1bd9016fca7f9867a06cbe73" }
 profiling = { path = "../../../crates/profiling" }
 # GPUI Framework
 gpui-ce = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI", rev = "31fbf35800b4cfc2ddf202a1c16a2971251ca84c" }
@@ -17,7 +17,7 @@ ui      = { git = "https://github.com/Far-Beyond-Pulsar/WGPUI-Component", rev = 
 
 # The host's editor API: the shared undo history and its Undo/Redo actions
 # (Pulsar-Native#931), and the editor menu strip (#1012).
-plugin_editor_api = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "6c61db9aacb29efc4a49bc23a7b1622eb6510a61" }
+plugin_editor_api = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "838f6accad39dc4c1bd9016fca7f9867a06cbe73" }
 
 # PIF Image Format
 pulsar_image_format = { git = "https://github.com/Far-Beyond-Pulsar/PIF-rs", rev = "c2cd8c4dfc49e12bebd76812308a7dda1f851452" }
@@ -53,8 +53,34 @@ plugin = []
 # public types keep one package identity in a standalone build. (Inside
 # Pulsar-Native the workspace's own [patch] maps these to its checkout.)
 [patch."https://github.com/Far-Beyond-Pulsar/WGPUI"]
-gpui-ce = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "6c61db9aacb29efc4a49bc23a7b1622eb6510a61" }
+gpui-ce = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "838f6accad39dc4c1bd9016fca7f9867a06cbe73" }
 
 [patch."https://github.com/Far-Beyond-Pulsar/WGPUI-Component"]
-ui = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "6c61db9aacb29efc4a49bc23a7b1622eb6510a61" }
-ui-macros = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "6c61db9aacb29efc4a49bc23a7b1622eb6510a61" }
+ui = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "838f6accad39dc4c1bd9016fca7f9867a06cbe73" }
+ui-macros = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "838f6accad39dc4c1bd9016fca7f9867a06cbe73" }
+
+# Public reflection types must come from the same published Pulsar snapshot
+# as ui_common, the VM and the scene registry. Local host integration belongs
+# in the explicit --config file, never in the standalone dependency graph.
+[patch."https://github.com/Far-Beyond-Pulsar/Pulsar-Reflection"]
+pulsar_reflection = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "838f6accad39dc4c1bd9016fca7f9867a06cbe73" }
+pulsar_reflection_derive = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "838f6accad39dc4c1bd9016fca7f9867a06cbe73" }
+pulsar_reflection_codegen = { git = "https://github.com/Far-Beyond-Pulsar/Pulsar-Native", rev = "838f6accad39dc4c1bd9016fca7f9867a06cbe73" }
+
+# Mirror the SceneDB revision inherited by the pinned Pulsar workspace.
+[patch."https://github.com/Far-Beyond-Pulsar/SceneDB"]
+pulsar_scenedb = { git = "https://github.com//Far-Beyond-Pulsar/SceneDB", rev = "017252c3c84331a29e53eaa627185597954a3241" }
+pulsar_scenedb_derive = { git = "https://github.com//Far-Beyond-Pulsar/SceneDB", rev = "017252c3c84331a29e53eaa627185597954a3241" }
+
+# Cargo only applies patches from the invocation root. Helio builds on the
+# same wgpu fork branch as the pinned Pulsar workspace (its [patch.crates-io]).
+[patch.crates-io]
+naga = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", branch = "helio/v30.0.1" }
+wgpu = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", branch = "helio/v30.0.1" }
+wgpu-core = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", branch = "helio/v30.0.1" }
+wgpu-core-deps-apple = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", branch = "helio/v30.0.1" }
+wgpu-core-deps-emscripten = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", branch = "helio/v30.0.1" }
+wgpu-core-deps-windows-linux-android = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", branch = "helio/v30.0.1" }
+wgpu-hal = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", branch = "helio/v30.0.1" }
+wgpu-naga-bridge = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", branch = "helio/v30.0.1" }
+wgpu-types = { git = "https://github.com/Far-Beyond-Pulsar/wgpu", branch = "helio/v30.0.1" }
