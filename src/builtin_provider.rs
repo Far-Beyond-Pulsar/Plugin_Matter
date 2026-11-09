@@ -147,6 +147,7 @@ impl BuiltinEditorProvider for MatterEditorBuiltinProvider {
 plugin_manager::inventory::submit! {
     plugin_manager::PluginEditorProvider {
         origin: pulsar_plugins::origin!(),
+        id: "com.pulsar.matter-editor",
         create: || Arc::new(MatterEditorBuiltinProvider),
     }
 }
