@@ -78,12 +78,12 @@ impl BuiltinEditorProvider for MatterEditorBuiltinProvider {
         window: &mut Window,
         cx: &mut App,
     ) -> Result<Arc<dyn PanelView>, PluginError> {
-        use gpui::Rgba;
         use crate::brush_engine::{BrushDropdownItem, BrushRegistry};
         use crate::state::Document;
+        use gpui::Rgba;
         use ui::{color_picker::ColorPickerState, dropdown::DropdownState, IndexPath};
 
-        let document = if file_path.exists() {
+        let document = if engine_fs::virtual_fs::exists(&file_path).unwrap_or(false) {
             Document::open(file_path.clone()).map_err(|e| PluginError::Other {
                 message: format!("Failed to open PIF file {:?}: {}", file_path, e),
             })?

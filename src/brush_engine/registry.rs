@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use gpui::{AnyElement, IntoElement, ParentElement, SharedString, Styled, div, px, rgba};
+use gpui::{div, px, rgba, AnyElement, IntoElement, ParentElement, SharedString, Styled};
 use ui::dropdown::DropdownItem;
 
 use super::config::{BrushConfig, BrushShape};
@@ -19,13 +19,13 @@ use crate::brush_engine::builtin::builtin_brushes;
 #[derive(Clone)]
 pub struct BrushEntry {
     /// Stable identifier derived from the `.pbrush` directory stem.
-    pub id:     String,
+    pub id: String,
     /// Parsed config from `config.json`.
     pub config: BrushConfig,
     /// Pre-rasterised mask — shared across clones.
-    pub mask:   Arc<BrushMask>,
+    pub mask: Arc<BrushMask>,
     /// Source directory on disk (`None` for built-in brushes).
-    pub path:   Option<PathBuf>,
+    pub path: Option<PathBuf>,
 }
 
 /// Holds all discovered brushes in display order.
@@ -41,17 +41,12 @@ impl BrushRegistry {
     pub fn load_from_dir(brushes_dir: &Path) -> Self {
         let mut brushes = builtin_brushes();
 
-        if let Ok(entries) = std::fs::read_dir(brushes_dir) {
+        if let Ok(entries) = engine_fs::virtual_fs::list_dir(brushes_dir) {
             let mut disk_brushes: Vec<BrushEntry> = entries
-                .flatten()
-                .filter(|e| {
-                    e.path()
-                        .extension()
-                        .and_then(|x| x.to_str())
-                        == Some("pbrush")
-                })
-                .filter_map(|e| {
-                    let path = e.path();
+                .into_iter()
+                .map(|e| brushes_dir.join(&e.name))
+                .filter(|p| p.extension().and_then(|x| x.to_str()) == Some("pbrush"))
+                .filter_map(|path| {
                     match load_pbrush(&path) {
                         Ok((config, mask)) => {
                             let id = path
@@ -97,7 +92,10 @@ impl BrushRegistry {
 
     /// Build the list of items consumed by the picker `Dropdown`.
     pub fn dropdown_items(&self) -> Vec<BrushDropdownItem> {
-        self.brushes.iter().map(BrushDropdownItem::from_entry).collect()
+        self.brushes
+            .iter()
+            .map(BrushDropdownItem::from_entry)
+            .collect()
     }
 }
 
@@ -107,9 +105,9 @@ impl BrushRegistry {
 #[derive(Clone)]
 pub struct BrushDropdownItem {
     /// Stable brush identifier (the `Dropdown`'s value type).
-    pub id:    String,
+    pub id: String,
     /// Display name.
-    pub name:  String,
+    pub name: String,
     /// Coarse shape for the preview thumbnail.
     pub shape: BrushShape,
 }
@@ -117,8 +115,8 @@ pub struct BrushDropdownItem {
 impl BrushDropdownItem {
     pub fn from_entry(e: &BrushEntry) -> Self {
         Self {
-            id:    e.id.clone(),
-            name:  e.config.name.clone(),
+            id: e.id.clone(),
+            name: e.config.name.clone(),
             shape: e.config.shape.clone(),
         }
     }
@@ -151,10 +149,34 @@ impl DropdownItem for BrushDropdownItem {
                 .h(px(18.0))
                 .flex()
                 .gap(px(2.0))
-                .child(div().w(px(3.0)).h_full().rounded(px(1.0)).bg(rgba(0xd0d0d0ff)))
-                .child(div().w(px(3.0)).h_full().rounded(px(1.0)).bg(rgba(0xd0d0d0ff)))
-                .child(div().w(px(3.0)).h_full().rounded(px(1.0)).bg(rgba(0xd0d0d0ff)))
-                .child(div().w(px(3.0)).h_full().rounded(px(1.0)).bg(rgba(0xc0c0c0ff))),
+                .child(
+                    div()
+                        .w(px(3.0))
+                        .h_full()
+                        .rounded(px(1.0))
+                        .bg(rgba(0xd0d0d0ff)),
+                )
+                .child(
+                    div()
+                        .w(px(3.0))
+                        .h_full()
+                        .rounded(px(1.0))
+                        .bg(rgba(0xd0d0d0ff)),
+                )
+                .child(
+                    div()
+                        .w(px(3.0))
+                        .h_full()
+                        .rounded(px(1.0))
+                        .bg(rgba(0xd0d0d0ff)),
+                )
+                .child(
+                    div()
+                        .w(px(3.0))
+                        .h_full()
+                        .rounded(px(1.0))
+                        .bg(rgba(0xc0c0c0ff)),
+                ),
             BrushShape::Custom => div()
                 .w(px(18.0))
                 .h(px(18.0))
