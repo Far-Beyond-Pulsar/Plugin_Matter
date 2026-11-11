@@ -4,17 +4,17 @@
 
 rust_i18n::i18n!("locales", fallback = "en");
 
-mod plugin;
+pub mod brush_engine;
+mod canvas;
 mod panel;
 mod panels;
+mod plugin;
 pub mod state;
-mod canvas;
 mod tools;
 mod ui;
-pub mod brush_engine;
 
-pub use plugin::MatterPlugin;
 pub use panel::MatterEditorPanel;
+pub use plugin::MatterPlugin;
 
 // This plugin's descriptor (`pulsar-plugin.toml`): linking the crate installs it.
 pulsar_plugins::installed!("pulsar-plugin.toml", build);
