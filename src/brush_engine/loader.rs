@@ -7,7 +7,7 @@
 //! The loader is intentionally synchronous; brushes are loaded once at startup
 //! and cached in the [`BrushRegistry`](super::registry::BrushRegistry).
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use std::path::Path;
 
 use super::config::BrushConfig;
@@ -16,7 +16,7 @@ use super::mask::BrushMask;
 /// Load a `.pbrush` directory and return its parsed config plus rasterised mask.
 pub fn load_pbrush(dir: &Path) -> Result<(BrushConfig, BrushMask)> {
     let config_path = dir.join("config.json");
-    let json = std::fs::read_to_string(&config_path)
+    let json = engine_fs::virtual_fs::read_to_string(&config_path)
         .with_context(|| format!("reading {}", config_path.display()))?;
     let config: BrushConfig = serde_json::from_str(&json)
         .with_context(|| format!("parsing {}", config_path.display()))?;
@@ -31,7 +31,10 @@ pub fn load_pbrush(dir: &Path) -> Result<(BrushConfig, BrushMask)> {
     let mask = match ext.as_str() {
         "png" => load_png(&mask_path)?,
         "svg" => load_svg(&mask_path)?,
-        other => bail!("unsupported brush mask format '.{other}' in {}", mask_path.display()),
+        other => bail!(
+            "unsupported brush mask format '.{other}' in {}",
+            mask_path.display()
+        ),
     };
 
     Ok((config, mask))
@@ -40,7 +43,7 @@ pub fn load_pbrush(dir: &Path) -> Result<(BrushConfig, BrushMask)> {
 // ── PNG ───────────────────────────────────────────────────────────────────────
 
 fn load_png(path: &Path) -> Result<BrushMask> {
-    let img = image::open(path)
+    let img = image::load_from_memory(&engine_fs::virtual_fs::read_file(path)?)
         .with_context(|| format!("decoding PNG {}", path.display()))?
         .to_rgba8();
     let (w, h) = img.dimensions();
@@ -54,7 +57,7 @@ const SVG_RASTER_SIZE: u32 = 64;
 
 fn load_svg(path: &Path) -> Result<BrushMask> {
     rasterise_svg_bytes(
-        &std::fs::read(path)
+        &engine_fs::virtual_fs::read_file(path)
             .with_context(|| format!("reading SVG {}", path.display()))?,
     )
     .with_context(|| format!("rasterising SVG {}", path.display()))
@@ -68,11 +71,9 @@ pub(crate) fn rasterise_svg_bytes(svg: &[u8]) -> Result<BrushMask> {
     const S: u32 = SVG_RASTER_SIZE;
 
     let opt = resvg::usvg::Options::default();
-    let tree = resvg::usvg::Tree::from_data(svg, &opt)
-        .context("parsing SVG")?;
+    let tree = resvg::usvg::Tree::from_data(svg, &opt).context("parsing SVG")?;
 
-    let mut pixmap = resvg::tiny_skia::Pixmap::new(S, S)
-        .context("allocating pixmap")?;
+    let mut pixmap = resvg::tiny_skia::Pixmap::new(S, S).context("allocating pixmap")?;
 
     let sx = S as f32 / tree.size().width();
     let sy = S as f32 / tree.size().height();
