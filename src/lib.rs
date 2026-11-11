@@ -17,7 +17,12 @@ pub use plugin::MatterPlugin;
 pub use panel::MatterEditorPanel;
 
 // This plugin's descriptor (`pulsar-plugin.toml`): linking the crate installs it.
-pulsar_plugins::installed!("pulsar-plugin.toml");
+pulsar_plugins::installed!("pulsar-plugin.toml", build);
 
-/// The plugin's editor provider, submitted to the editor (origin-gated).
+/// Everything the plugin registers (the editor provider).
+pub fn build(p: &mut pulsar_plugins::PluginBuilder) {
+    builtin_provider::build(p);
+}
+
+/// The plugin's editor provider, registered by `build` (origin-gated).
 mod builtin_provider;
