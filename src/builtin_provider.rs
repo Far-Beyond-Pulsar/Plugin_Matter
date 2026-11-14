@@ -55,6 +55,7 @@ impl BuiltinEditorProvider for MatterEditorBuiltinProvider {
                 ]
             }),
             creation_directory: None,
+            cook: plugin_editor_api::file_types::copy_file_for_cook,
 
             categories: vec!["Textures".to_string()],
         }]
