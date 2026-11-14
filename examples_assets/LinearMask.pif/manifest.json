@@ -1,0 +1,21 @@
+{
+  "pif_version": "1.0",
+  "description": "A 2048x2048 canvas in the Linear color space, for data textures (roughness, masks, height) that must not be gamma encoded. Painted values are used as written by the shader. Tiles are 512 px here instead of the usual 256.",
+  "canvas": {
+    "width": 2048,
+    "height": 2048,
+    "color_space": "Linear"
+  },
+  "layers": [
+    {
+      "type": "raster",
+      "id": "mask",
+      "name": "Mask",
+      "visible": true,
+      "opacity": 1.0,
+      "blend_mode": "normal",
+      "tile_size": 512,
+      "tiles": {}
+    }
+  ]
+}

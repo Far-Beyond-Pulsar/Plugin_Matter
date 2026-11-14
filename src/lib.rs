@@ -22,7 +22,11 @@ pulsar_plugins::installed!("pulsar-plugin.toml", build);
 /// Everything the plugin registers (the editor provider).
 pub fn build(p: &mut pulsar_plugins::PluginBuilder) {
     builtin_provider::build(p);
+    examples::build(p);
 }
 
 /// The plugin's editor provider, registered by `build` (origin-gated).
 mod builtin_provider;
+
+/// The plugin's example documents, served as `examples/` in its folder.
+mod examples;

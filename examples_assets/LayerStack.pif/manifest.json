@@ -1,0 +1,54 @@
+{
+  "pif_version": "1.0",
+  "description": "A 1024x1024 document with several layers, bottom to top: an empty raster background, a vector layer of flat shapes, and two empty raster layers for painting (one half transparent, one hidden). Layers are listed bottom first; visible and opacity are per layer.",
+  "canvas": {
+    "width": 1024,
+    "height": 1024,
+    "color_space": "sRGB"
+  },
+  "layers": [
+    {
+      "type": "raster",
+      "id": "background",
+      "name": "Background",
+      "visible": true,
+      "opacity": 1.0,
+      "blend_mode": "normal",
+      "tile_size": 256,
+      "tiles": {}
+    },
+    {
+      "type": "vector",
+      "id": "shapes",
+      "name": "Shapes",
+      "visible": true,
+      "opacity": 1.0,
+      "blend_mode": "normal",
+      "elements": [
+        { "shape": "rect", "x": 128.0, "y": 128.0, "w": 768.0, "h": 768.0, "fill": "#2f6fe4" },
+        { "shape": "circle", "cx": 512.0, "cy": 512.0, "r": 256.0, "fill": "#f2f4f8" },
+        { "shape": "rect", "x": 448.0, "y": 448.0, "w": 128.0, "h": 128.0, "fill": "#d94a4a" }
+      ]
+    },
+    {
+      "type": "raster",
+      "id": "paint",
+      "name": "Paint",
+      "visible": true,
+      "opacity": 0.5,
+      "blend_mode": "normal",
+      "tile_size": 256,
+      "tiles": {}
+    },
+    {
+      "type": "raster",
+      "id": "notes",
+      "name": "Notes (hidden)",
+      "visible": false,
+      "opacity": 1.0,
+      "blend_mode": "normal",
+      "tile_size": 256,
+      "tiles": {}
+    }
+  ]
+}

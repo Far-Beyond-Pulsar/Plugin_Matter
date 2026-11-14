@@ -1,0 +1,35 @@
+{
+  "pif_version": "1.0",
+  "description": "A 256x256 icon made only of vector layers: scalable shapes stay sharp at any size. Shows all three vector elements (rect, circle, path with a stroke).",
+  "canvas": {
+    "width": 256,
+    "height": 256,
+    "color_space": "sRGB"
+  },
+  "layers": [
+    {
+      "type": "vector",
+      "id": "badge",
+      "name": "Badge",
+      "visible": true,
+      "opacity": 1.0,
+      "blend_mode": "normal",
+      "elements": [
+        { "shape": "rect", "x": 16.0, "y": 16.0, "w": 224.0, "h": 224.0, "fill": "#1b1f2a" },
+        { "shape": "circle", "cx": 128.0, "cy": 128.0, "r": 88.0, "fill": "#e4a62f" },
+        { "shape": "circle", "cx": 128.0, "cy": 128.0, "r": 64.0, "fill": "#1b1f2a" }
+      ]
+    },
+    {
+      "type": "vector",
+      "id": "mark",
+      "name": "Mark",
+      "visible": true,
+      "opacity": 1.0,
+      "blend_mode": "normal",
+      "elements": [
+        { "shape": "path", "data": "M 96 136 L 120 160 L 164 100", "stroke": "#f2f4f8", "stroke_width": 12.0 }
+      ]
+    }
+  ]
+}

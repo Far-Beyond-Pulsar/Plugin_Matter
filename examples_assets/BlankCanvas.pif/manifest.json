@@ -1,0 +1,21 @@
+{
+  "pif_version": "1.0",
+  "description": "The smallest PIF document: a 512x512 sRGB canvas with one empty raster layer. Painted pixels are stored as QOI tiles under .raster/ and listed in the layer's tiles map (an empty map means nothing has been painted).",
+  "canvas": {
+    "width": 512,
+    "height": 512,
+    "color_space": "sRGB"
+  },
+  "layers": [
+    {
+      "type": "raster",
+      "id": "background",
+      "name": "Background",
+      "visible": true,
+      "opacity": 1.0,
+      "blend_mode": "normal",
+      "tile_size": 256,
+      "tiles": {}
+    }
+  ]
+}
