@@ -18,7 +18,7 @@ ui      = { workspace = true }
 
 # The host's editor API: the shared undo history and its Undo/Redo actions
 # (Pulsar-Native#931), and the editor menu strip (#1012).
-plugin_editor_api = { workspace = true }
+plugin_editor_api = { workspace = true, features = ["editor"] }
 
 # PIF Image Format
 pulsar_image_format = { git = "https://github.com/Far-Beyond-Pulsar/PIF-rs", rev = "c2cd8c4dfc49e12bebd76812308a7dda1f851452" }
