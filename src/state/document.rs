@@ -1,13 +1,13 @@
 //! Document state wrapping PIF asset manager
 
-use pulsar_image_format::{PifAssetManager, SaveMode};
+use parking_lot::{Mutex, MutexGuard};
 use pulsar_image_format::model::Layer;
+use pulsar_image_format::{PifAssetManager, SaveMode};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use parking_lot::{Mutex, MutexGuard};
 use thiserror::Error;
 
 use super::history::History;
@@ -38,14 +38,14 @@ pub type Result<T> = std::result::Result<T, DocumentError>;
 pub struct SharedPif(Arc<PifCell>);
 
 struct PifCell {
-    manager:  Mutex<PifAssetManager>,
+    manager: Mutex<PifAssetManager>,
     revision: AtomicU64,
 }
 
 impl SharedPif {
     pub fn new(manager: PifAssetManager) -> Self {
         Self(Arc::new(PifCell {
-            manager:  Mutex::new(manager),
+            manager: Mutex::new(manager),
             revision: AtomicU64::new(0),
         }))
     }
@@ -57,7 +57,10 @@ impl SharedPif {
 
     /// Lock for writing. The revision is bumped when the guard drops.
     pub fn write(&self) -> PifWrite<'_> {
-        PifWrite { guard: self.0.manager.lock(), revision: &self.0.revision }
+        PifWrite {
+            guard: self.0.manager.lock(),
+            revision: &self.0.revision,
+        }
     }
 
     /// Monotonic count of writes (and other document edits) so far.
@@ -76,22 +79,28 @@ pub struct PifRead<'a>(MutexGuard<'a, PifAssetManager>);
 
 impl Deref for PifRead<'_> {
     type Target = PifAssetManager;
-    fn deref(&self) -> &PifAssetManager { &self.0 }
+    fn deref(&self) -> &PifAssetManager {
+        &self.0
+    }
 }
 
 /// Exclusive access to the PIF manager; bumps the revision on drop.
 pub struct PifWrite<'a> {
-    guard:    MutexGuard<'a, PifAssetManager>,
+    guard: MutexGuard<'a, PifAssetManager>,
     revision: &'a AtomicU64,
 }
 
 impl Deref for PifWrite<'_> {
     type Target = PifAssetManager;
-    fn deref(&self) -> &PifAssetManager { &self.guard }
+    fn deref(&self) -> &PifAssetManager {
+        &self.guard
+    }
 }
 
 impl DerefMut for PifWrite<'_> {
-    fn deref_mut(&mut self) -> &mut PifAssetManager { &mut self.guard }
+    fn deref_mut(&mut self) -> &mut PifAssetManager {
+        &mut self.guard
+    }
 }
 
 impl Drop for PifWrite<'_> {
@@ -106,22 +115,22 @@ impl Drop for PifWrite<'_> {
 pub struct Document {
     /// Path to the PIF file
     path: Option<PathBuf>,
-    
+
     /// PIF asset manager, shared with commands; carries the document revision
     pub pif: SharedPif,
-    
+
     /// Active layer ID
     active_layer: Option<String>,
-    
+
     /// Document has unsaved changes
     is_dirty: bool,
-    
+
     /// Undo/redo history
     pub history: History,
-    
+
     /// Tool state
     pub tool_state: ToolState,
-    
+
     /// Viewport state
     pub viewport: ViewportState,
 }
@@ -129,11 +138,12 @@ pub struct Document {
 impl Document {
     /// Create a new empty document
     pub fn new(width: u32, height: u32) -> Result<Self> {
-        let temp_path = std::env::temp_dir().join(format!("matter_temp_{}.pif", uuid::Uuid::new_v4()));
+        let temp_path =
+            std::env::temp_dir().join(format!("matter_temp_{}.pif", uuid::Uuid::new_v4()));
         let pif = PifAssetManager::create_new(&temp_path, width, height, SaveMode::Directory)?;
-        
+
         let (_width, _height) = (width, height);
-        
+
         let mut doc = Self {
             path: None,
             pif: SharedPif::new(pif),
@@ -143,14 +153,14 @@ impl Document {
             tool_state: ToolState::default(),
             viewport: ViewportState::new(),
         };
-        
+
         // Add a default background layer
         let layer_id = doc.add_raster_layer("Background".to_string());
         doc.active_layer = Some(layer_id);
-        
+
         Ok(doc)
     }
-    
+
     /// Open an existing document from a file
     pub fn open(path: PathBuf) -> Result<Self> {
         let pif = PifAssetManager::open(&path)?;
@@ -159,7 +169,7 @@ impl Document {
             let canvas = &pif.manifest().canvas;
             (canvas.width, canvas.height)
         };
-        
+
         Ok(Self {
             path: Some(path),
             pif: SharedPif::new(pif),
@@ -170,7 +180,7 @@ impl Document {
             viewport: ViewportState::new(),
         })
     }
-    
+
     /// Save the document
     pub fn save(&mut self) -> Result<()> {
         if let Some(_path) = &self.path {
@@ -184,13 +194,13 @@ impl Document {
             )))
         }
     }
-    
+
     /// Save the document to a new path
     pub fn save_as(&mut self, path: PathBuf) -> Result<()> {
         self.path = Some(path);
         self.save()
     }
-    
+
     /// Get a clone of the PIF handle for commands
     pub fn pif_handle(&self) -> SharedPif {
         self.pif.clone()
@@ -203,25 +213,25 @@ impl Document {
     pub fn revision(&self) -> u64 {
         self.pif.revision()
     }
-    
+
     /// Get canvas dimensions
     pub fn dimensions(&self) -> (u32, u32) {
         let pif = self.pif.read();
         let canvas = &pif.manifest().canvas;
         (canvas.width, canvas.height)
     }
-    
+
     /// Get the list of layers (cloned for rendering)
     pub fn layers(&self) -> Vec<Layer> {
         let pif = self.pif.read();
         pif.manifest().layers.clone()
     }
-    
+
     /// Get active layer ID
     pub fn active_layer(&self) -> Option<&str> {
         self.active_layer.as_deref()
     }
-    
+
     /// Set active layer
     pub fn set_active_layer(&mut self, layer_id: String) {
         if self.active_layer.as_deref() != Some(layer_id.as_str()) {
@@ -229,12 +239,12 @@ impl Document {
             self.pif.bump();
         }
     }
-    
+
     /// Add a new raster layer (direct, without command)
     /// Use CreateLayerCommand for undoable version
     pub fn add_raster_layer(&mut self, name: String) -> String {
         let id = format!("layer_{}", uuid::Uuid::new_v4());
-        
+
         let mut pif = self.pif.write();
         pif.manifest_mut().layers.push(Layer::Raster {
             id: id.clone(),
@@ -245,32 +255,32 @@ impl Document {
             tile_size: 256,
             tiles: HashMap::new(),
         });
-        
+
         self.is_dirty = true;
         id
     }
-    
+
     /// Load a tile from a layer
     pub fn load_tile(&self, layer_id: &str, tile_x: u32, tile_y: u32) -> Result<Vec<u8>> {
         let pif = self.pif.read();
         Ok(pif.load_raster_tile(layer_id, tile_x, tile_y)?)
     }
-    
+
     /// Check if document has unsaved changes
     pub fn is_dirty(&self) -> bool {
         self.is_dirty
     }
-    
+
     /// Mark document as dirty
     pub fn mark_dirty(&mut self) {
         self.is_dirty = true;
     }
-    
+
     /// Get file path
     pub fn path(&self) -> Option<&Path> {
         self.path.as_deref()
     }
-    
+
     /// Get filename for display
     pub fn filename(&self) -> String {
         self.path
@@ -296,8 +306,11 @@ mod tests {
 
     impl TestDoc {
         fn new() -> Self {
-            let dir = std::env::temp_dir().join(format!("matter_rev_test_{}", uuid::Uuid::new_v4()));
-            let pif = PifAssetManager::create_new(dir.join("doc.pif"), 512, 512, SaveMode::Directory).unwrap();
+            let dir =
+                std::env::temp_dir().join(format!("matter_rev_test_{}", uuid::Uuid::new_v4()));
+            let pif =
+                PifAssetManager::create_new(dir.join("doc.pif"), 512, 512, SaveMode::Directory)
+                    .unwrap();
             let mut doc = Document {
                 path: None,
                 pif: SharedPif::new(pif),
@@ -404,11 +417,19 @@ mod tests {
             m
         };
         let commands: Vec<Box<dyn Command>> = vec![
-            Box::new(CreateLayerCommand::new(pif.clone(), "extra".into(), "Extra".into())),
+            Box::new(CreateLayerCommand::new(
+                pif.clone(),
+                "extra".into(),
+                "Extra".into(),
+            )),
             Box::new(ToggleLayerVisibilityCommand::new(pif.clone(), base.clone())),
             Box::new(SetLayerOpacityCommand::new(pif.clone(), base.clone(), 0.5)),
             Box::new(ReorderLayersCommand::new(pif.clone(), 0, 1)),
-            Box::new(PaintStrokeCommand::from_tiles(pif.clone(), tile(0), tile(255))),
+            Box::new(PaintStrokeCommand::from_tiles(
+                pif.clone(),
+                tile(0),
+                tile(255),
+            )),
             Box::new(DeleteLayerCommand::new(pif.clone(), "extra".into())),
         ];
         for cmd in commands {

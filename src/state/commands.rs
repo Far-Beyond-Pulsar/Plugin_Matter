@@ -4,7 +4,7 @@
 //! bumps the document revision.
 
 use super::document::SharedPif;
-use super::history::{Command, CommandResult, CommandError};
+use super::history::{Command, CommandError, CommandResult};
 use pulsar_image_format::model::Layer;
 use std::collections::HashMap;
 
@@ -14,7 +14,7 @@ pub struct PaintStrokeCommand {
     pif: SharedPif,
     /// (layer_id, tile_x, tile_y) → pixel data
     tiles_before: HashMap<(String, u32, u32), Vec<u8>>,
-    tiles_after:  HashMap<(String, u32, u32), Vec<u8>>,
+    tiles_after: HashMap<(String, u32, u32), Vec<u8>>,
 }
 
 impl PaintStrokeCommand {
@@ -24,9 +24,13 @@ impl PaintStrokeCommand {
     pub fn from_tiles(
         pif: SharedPif,
         tiles_before: HashMap<(String, u32, u32), Vec<u8>>,
-        tiles_after:  HashMap<(String, u32, u32), Vec<u8>>,
+        tiles_after: HashMap<(String, u32, u32), Vec<u8>>,
     ) -> Self {
-        Self { pif, tiles_before, tiles_after }
+        Self {
+            pif,
+            tiles_before,
+            tiles_after,
+        }
     }
 }
 
@@ -40,18 +44,22 @@ impl std::fmt::Debug for PaintStrokeCommand {
 
 impl Command for PaintStrokeCommand {
     fn execute(&mut self) -> CommandResult<()> {
-        self.pif.write()
+        self.pif
+            .write()
             .commit_changes(self.tiles_after.clone())
             .map_err(|e| CommandError::ExecutionFailed(e.to_string()))
     }
 
     fn undo(&mut self) -> CommandResult<()> {
-        self.pif.write()
+        self.pif
+            .write()
             .commit_changes(self.tiles_before.clone())
             .map_err(|e| CommandError::UndoFailed(e.to_string()))
     }
 
-    fn description(&self) -> &str { "Paint Stroke" }
+    fn description(&self) -> &str {
+        "Paint Stroke"
+    }
 }
 
 /// Create layer command
@@ -62,11 +70,7 @@ pub struct CreateLayerCommand {
 }
 
 impl CreateLayerCommand {
-    pub fn new(
-        pif: SharedPif,
-        layer_id: String,
-        layer_name: String,
-    ) -> Self {
+    pub fn new(pif: SharedPif, layer_id: String, layer_name: String) -> Self {
         Self {
             pif,
             layer_id,
@@ -87,7 +91,7 @@ impl std::fmt::Debug for CreateLayerCommand {
 impl Command for CreateLayerCommand {
     fn execute(&mut self) -> CommandResult<()> {
         let mut pif = self.pif.write();
-        
+
         let new_layer = Layer::Raster {
             id: self.layer_id.clone(),
             name: self.layer_name.clone(),
@@ -97,19 +101,17 @@ impl Command for CreateLayerCommand {
             tile_size: 256,
             tiles: HashMap::new(),
         };
-        
+
         pif.manifest_mut().layers.push(new_layer);
         Ok(())
     }
-    
+
     fn undo(&mut self) -> CommandResult<()> {
         let mut pif = self.pif.write();
         let manifest = pif.manifest_mut();
-        
-        if let Some(pos) = manifest.layers.iter().position(|l| {
-            match l {
-                Layer::Raster { id, .. } | Layer::Vector { id, .. } => id == &self.layer_id
-            }
+
+        if let Some(pos) = manifest.layers.iter().position(|l| match l {
+            Layer::Raster { id, .. } | Layer::Vector { id, .. } => id == &self.layer_id,
         }) {
             manifest.layers.remove(pos);
             Ok(())
@@ -117,7 +119,7 @@ impl Command for CreateLayerCommand {
             Err(CommandError::UndoFailed("Layer not found".to_string()))
         }
     }
-    
+
     fn description(&self) -> &str {
         "Create Layer"
     }
@@ -154,11 +156,9 @@ impl Command for DeleteLayerCommand {
     fn execute(&mut self) -> CommandResult<()> {
         let mut pif = self.pif.write();
         let manifest = pif.manifest_mut();
-        
-        if let Some(pos) = manifest.layers.iter().position(|l| {
-            match l {
-                Layer::Raster { id, .. } | Layer::Vector { id, .. } => id == &self.layer_id
-            }
+
+        if let Some(pos) = manifest.layers.iter().position(|l| match l {
+            Layer::Raster { id, .. } | Layer::Vector { id, .. } => id == &self.layer_id,
         }) {
             self.layer_backup = Some(manifest.layers.remove(pos));
             self.layer_index = Some(pos);
@@ -167,7 +167,7 @@ impl Command for DeleteLayerCommand {
             Err(CommandError::ExecutionFailed("Layer not found".to_string()))
         }
     }
-    
+
     fn undo(&mut self) -> CommandResult<()> {
         if let (Some(layer), Some(index)) = (self.layer_backup.take(), self.layer_index) {
             let mut pif = self.pif.write();
@@ -177,7 +177,7 @@ impl Command for DeleteLayerCommand {
             Err(CommandError::UndoFailed("No backup layer".to_string()))
         }
     }
-    
+
     fn description(&self) -> &str {
         "Delete Layer"
     }
@@ -207,7 +207,7 @@ impl Command for ToggleLayerVisibilityCommand {
     fn execute(&mut self) -> CommandResult<()> {
         let mut pif = self.pif.write();
         let manifest = pif.manifest_mut();
-        
+
         for layer in &mut manifest.layers {
             match layer {
                 Layer::Raster { id, visible, .. } | Layer::Vector { id, visible, .. } => {
@@ -218,15 +218,15 @@ impl Command for ToggleLayerVisibilityCommand {
                 }
             }
         }
-        
+
         Err(CommandError::ExecutionFailed("Layer not found".to_string()))
     }
-    
+
     fn undo(&mut self) -> CommandResult<()> {
         // Toggle is its own inverse
         self.execute()
     }
-    
+
     fn description(&self) -> &str {
         "Toggle Layer Visibility"
     }
@@ -264,7 +264,7 @@ impl Command for SetLayerOpacityCommand {
     fn execute(&mut self) -> CommandResult<()> {
         let mut pif = self.pif.write();
         let manifest = pif.manifest_mut();
-        
+
         for layer in &mut manifest.layers {
             match layer {
                 Layer::Raster { id, opacity, .. } | Layer::Vector { id, opacity, .. } => {
@@ -276,15 +276,15 @@ impl Command for SetLayerOpacityCommand {
                 }
             }
         }
-        
+
         Err(CommandError::ExecutionFailed("Layer not found".to_string()))
     }
-    
+
     fn undo(&mut self) -> CommandResult<()> {
         if let Some(old) = self.old_opacity {
             let mut pif = self.pif.write();
             let manifest = pif.manifest_mut();
-            
+
             for layer in &mut manifest.layers {
                 match layer {
                     Layer::Raster { id, opacity, .. } | Layer::Vector { id, opacity, .. } => {
@@ -296,10 +296,12 @@ impl Command for SetLayerOpacityCommand {
                 }
             }
         }
-        
-        Err(CommandError::UndoFailed("No old opacity stored".to_string()))
+
+        Err(CommandError::UndoFailed(
+            "No old opacity stored".to_string(),
+        ))
     }
-    
+
     fn description(&self) -> &str {
         "Set Layer Opacity"
     }
@@ -335,16 +337,18 @@ impl Command for ReorderLayersCommand {
     fn execute(&mut self) -> CommandResult<()> {
         let mut pif = self.pif.write();
         let layers = &mut pif.manifest_mut().layers;
-        
+
         if self.from_index >= layers.len() || self.to_index >= layers.len() {
-            return Err(CommandError::ExecutionFailed("Invalid layer index".to_string()));
+            return Err(CommandError::ExecutionFailed(
+                "Invalid layer index".to_string(),
+            ));
         }
-        
+
         let layer = layers.remove(self.from_index);
         layers.insert(self.to_index, layer);
         Ok(())
     }
-    
+
     fn undo(&mut self) -> CommandResult<()> {
         // Swap indices and execute
         std::mem::swap(&mut self.from_index, &mut self.to_index);
@@ -352,7 +356,7 @@ impl Command for ReorderLayersCommand {
         std::mem::swap(&mut self.from_index, &mut self.to_index);
         result
     }
-    
+
     fn description(&self) -> &str {
         "Reorder Layers"
     }

@@ -12,14 +12,14 @@ use gpui::*;
 use parking_lot::RwLock;
 use ui::ActiveTheme;
 
+use super::renderer::{CanvasRenderInput, CanvasRenderer};
 use crate::brush_engine::{stamp_into_wet, BrushMask, BrushRegistry};
-use crate::state::{ActiveTool, Document, commands::PaintStrokeCommand};
-use super::renderer::{CanvasRenderer, CanvasRenderInput};
+use crate::state::{commands::PaintStrokeCommand, ActiveTool, Document};
 
 const SURFACE_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
-const ZOOM_MIN:    f32 = 0.05;
-const ZOOM_MAX:    f32 = 32.0;
-const TILE_SIZE:   u32 = 256;
+const ZOOM_MIN: f32 = 0.05;
+const ZOOM_MAX: f32 = 32.0;
+const TILE_SIZE: u32 = 256;
 
 // ── Active stroke state ───────────────────────────────────────────────────────
 
@@ -28,30 +28,30 @@ const TILE_SIZE:   u32 = 256;
 const DIR_WINDOW: usize = 12;
 
 struct ActiveStroke {
-    color:         [u8; 4],
-    brush_size:    f32,
+    color: [u8; 4],
+    brush_size: f32,
     brush_opacity: f32,
-    is_eraser:     bool,
-    layer_id:      String,
+    is_eraser: bool,
+    layer_id: String,
     /// Brush mask locked in at stroke start.
-    brush_mask:    Arc<BrushMask>,
+    brush_mask: Arc<BrushMask>,
     /// Base spacing from brush config (`0..1` of brush size).
     brush_spacing: f32,
 
     // ── Direction tracking ────────────────────────────────────────────────────
     /// Smoothed stroke-direction unit vector (cos θ, sin θ).
     /// Stored as a vector — not an angle — to avoid wrap-around at ±π.
-    dir_x:      f32,
-    dir_y:      f32,
+    dir_x: f32,
+    dir_y: f32,
     /// Ring buffer of recent canvas-space positions used to compute a stable
     /// windowed direction rather than a noisy per-sample delta.
     pos_buffer: VecDeque<Point<f32>>,
 
     // ── Wet-buffer model ──────────────────────────────────────────────────────
     /// Snapshot of each tile *before* this stroke began.  Never modified.
-    tiles_before:  HashMap<(String, u32, u32), Vec<u8>>,
+    tiles_before: HashMap<(String, u32, u32), Vec<u8>>,
     /// Accumulated stroke stamps for this stroke.
-    wet_tiles:     HashMap<(String, u32, u32), Vec<u8>>,
+    wet_tiles: HashMap<(String, u32, u32), Vec<u8>>,
     /// Composited result (tiles_before + wet).  This is
     /// what gets written to PIF and shown as live tile data during the stroke.
     tiles_current: HashMap<(String, u32, u32), Vec<u8>>,
@@ -76,24 +76,24 @@ struct StampSample {
 // ── CanvasViewport entity ─────────────────────────────────────────────────────
 
 pub struct CanvasViewport {
-    focus_handle:    FocusHandle,
-    document:        Arc<RwLock<Document>>,
-    brush_registry:  Arc<BrushRegistry>,
-    renderer:        Arc<Mutex<CanvasRenderer>>,
-    surface:         Option<WgpuSurfaceHandle>,
+    focus_handle: FocusHandle,
+    document: Arc<RwLock<Document>>,
+    brush_registry: Arc<BrushRegistry>,
+    renderer: Arc<Mutex<CanvasRenderer>>,
+    surface: Option<WgpuSurfaceHandle>,
 
     /// Canvas origin in element-local pixels (pan offset).
-    pan:  Point<f32>,
+    pan: Point<f32>,
     zoom: f32,
 
     // Pan via right-click or middle-click drag
-    is_panning:          bool,
-    pan_win_start:       Option<Point<f32>>,
+    is_panning: bool,
+    pan_win_start: Option<Point<f32>>,
     pan_offset_at_start: Point<f32>,
 
-    is_mid_panning:          bool,
-    mid_win_start:           Option<Point<f32>>,
-    mid_offset_at_start:     Point<f32>,
+    is_mid_panning: bool,
+    mid_win_start: Option<Point<f32>>,
+    mid_offset_at_start: Point<f32>,
 
     // Active stroke (Paint/Erase)
     active_stroke: Option<ActiveStroke>,
@@ -112,7 +112,7 @@ pub struct CanvasViewport {
     // Logical pixel values from GPUI's layout — used to convert mouse events
     // (also logical) into element-local / canvas-space coordinates.
     element_origin: Rc<RefCell<Point<f32>>>,
-    element_size:   Rc<RefCell<[f32; 2]>>,
+    element_size: Rc<RefCell<[f32; 2]>>,
 
     /// Bumped whenever the live stroke overlay changes.
     stroke_rev: u64,
@@ -128,40 +128,40 @@ pub struct CanvasViewport {
 /// so hovering does not redraw the surface.
 #[derive(Clone, Copy, PartialEq)]
 struct FrameKey {
-    revision:      u64,
-    stroke_rev:    u64,
-    pan:           [f32; 2],
-    zoom:          f32,
+    revision: u64,
+    stroke_rev: u64,
+    pan: [f32; 2],
+    zoom: f32,
     viewport_size: [f32; 2],
-    surface_size:  (u32, u32),
+    surface_size: (u32, u32),
 }
 
 impl CanvasViewport {
     pub fn new(
-        document:       Arc<RwLock<Document>>,
+        document: Arc<RwLock<Document>>,
         brush_registry: Arc<BrushRegistry>,
-        cx:             &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) -> Self {
         Self {
-            focus_handle:    cx.focus_handle(),
+            focus_handle: cx.focus_handle(),
             document,
             brush_registry,
-            renderer:        Arc::new(Mutex::new(CanvasRenderer::new())),
-            surface:         None,
-            pan:           Point::new(32.0, 32.0),
-            zoom:          1.0,
+            renderer: Arc::new(Mutex::new(CanvasRenderer::new())),
+            surface: None,
+            pan: Point::new(32.0, 32.0),
+            zoom: 1.0,
             last_dir_x: 1.0,
             last_dir_y: 0.0,
-            is_panning:            false,
-            pan_win_start:         None,
-            pan_offset_at_start:   Point::default(),
-            is_mid_panning:            false,
-            mid_win_start:             None,
-            mid_offset_at_start:       Point::default(),
+            is_panning: false,
+            pan_win_start: None,
+            pan_offset_at_start: Point::default(),
+            is_mid_panning: false,
+            mid_win_start: None,
+            mid_offset_at_start: Point::default(),
             active_stroke: None,
-            cursor_win:    None,
+            cursor_win: None,
             element_origin: Rc::new(RefCell::new(Point::default())),
-            element_size:   Rc::new(RefCell::new([0.0, 0.0])),
+            element_size: Rc::new(RefCell::new([0.0, 0.0])),
             stroke_rev: 0,
             last_frame: None,
         }
@@ -189,15 +189,18 @@ impl CanvasViewport {
 
     /// Ensure a tile is initialised in all stroke buffers.
     fn ensure_tile(
-        layer_id:      &str,
-        tx: u32, ty: u32,
-        doc:           &Document,
-        tiles_before:  &mut HashMap<(String, u32, u32), Vec<u8>>,
-        wet_tiles:     &mut HashMap<(String, u32, u32), Vec<u8>>,
+        layer_id: &str,
+        tx: u32,
+        ty: u32,
+        doc: &Document,
+        tiles_before: &mut HashMap<(String, u32, u32), Vec<u8>>,
+        wet_tiles: &mut HashMap<(String, u32, u32), Vec<u8>>,
         tiles_current: &mut HashMap<(String, u32, u32), Vec<u8>>,
     ) {
         let key = (layer_id.to_string(), tx, ty);
-        if tiles_before.contains_key(&key) { return; }
+        if tiles_before.contains_key(&key) {
+            return;
+        }
 
         let raw = doc.load_tile(layer_id, tx, ty).unwrap_or_default();
         let base = if raw.is_empty() {
@@ -267,17 +270,13 @@ impl CanvasViewport {
         }
     }
 
-    fn stamp_sample(
-        stroke:     &mut ActiveStroke,
-        sample:     &StampSample,
-        doc:        &Document,
-    ) {
-        let angle  = sample.dir_y.atan2(sample.dir_x);
+    fn stamp_sample(stroke: &mut ActiveStroke, sample: &StampSample, doc: &Document) {
+        let angle = sample.dir_y.atan2(sample.dir_x);
         let radius = stroke.brush_size * 0.5;
-        let min_x  = (sample.pos.x - radius).floor().max(0.0) as u32;
-        let min_y  = (sample.pos.y - radius).floor().max(0.0) as u32;
-        let max_x  = (sample.pos.x + radius).ceil() as u32;
-        let max_y  = (sample.pos.y + radius).ceil() as u32;
+        let min_x = (sample.pos.x - radius).floor().max(0.0) as u32;
+        let min_y = (sample.pos.y - radius).floor().max(0.0) as u32;
+        let max_x = (sample.pos.x + radius).ceil() as u32;
+        let max_y = (sample.pos.y + radius).ceil() as u32;
 
         let min_tx = min_x / TILE_SIZE;
         let max_tx = max_x / TILE_SIZE;
@@ -287,7 +286,10 @@ impl CanvasViewport {
         for ty in min_ty..=max_ty {
             for tx in min_tx..=max_tx {
                 Self::ensure_tile(
-                    &stroke.layer_id, tx, ty, doc,
+                    &stroke.layer_id,
+                    tx,
+                    ty,
+                    doc,
                     &mut stroke.tiles_before,
                     &mut stroke.wet_tiles,
                     &mut stroke.tiles_current,
@@ -321,14 +323,9 @@ impl CanvasViewport {
     /// positions (oldest→newest trend), then lightly smoothed with a low-α EMA.
     /// This is far more stable than per-sample deltas — it matches the approach
     /// used internally by Photoshop's brush engine.
-    fn stamp_segment(
-        stroke: &mut ActiveStroke,
-        from:   Point<f32>,
-        to:     Point<f32>,
-        doc:    &Document,
-    ) {
-        let dx   = to.x - from.x;
-        let dy   = to.y - from.y;
+    fn stamp_segment(stroke: &mut ActiveStroke, from: Point<f32>, to: Point<f32>, doc: &Document) {
+        let dx = to.x - from.x;
+        let dy = to.y - from.y;
         let dist = (dx * dx + dy * dy).sqrt();
         if dist < 0.01 {
             return;
@@ -406,7 +403,11 @@ impl CanvasViewport {
             Self::stamp_sample(stroke, &sample, doc);
             offset += step;
         }
-        stroke.stamp_carry = if step > 0.0 { (carry + dist) % step } else { 0.0 };
+        stroke.stamp_carry = if step > 0.0 {
+            (carry + dist) % step
+        } else {
+            0.0
+        };
     }
 
     /// Begin a paint stroke from a canvas-space position.
@@ -431,7 +432,7 @@ impl CanvasViewport {
 
         let mut stroke = ActiveStroke {
             color,
-            brush_size:    doc.tool_state.brush_size,
+            brush_size: doc.tool_state.brush_size,
             brush_opacity: doc.tool_state.brush_opacity,
             is_eraser,
             layer_id,
@@ -441,13 +442,13 @@ impl CanvasViewport {
             // stays oriented correctly rather than snapping to a fixed default.
             dir_x: self.last_dir_x,
             dir_y: self.last_dir_y,
-            pos_buffer:    VecDeque::with_capacity(DIR_WINDOW),
-            tiles_before:  HashMap::new(),
-            wet_tiles:     HashMap::new(),
+            pos_buffer: VecDeque::with_capacity(DIR_WINDOW),
+            tiles_before: HashMap::new(),
+            wet_tiles: HashMap::new(),
             tiles_current: HashMap::new(),
-            last_pos:      Some(canvas_pos),
-            speed_ema:     0.0,
-            stamp_carry:   0.0,
+            last_pos: Some(canvas_pos),
+            speed_ema: 0.0,
+            stamp_carry: 0.0,
         };
         let seed = StampSample {
             pos: canvas_pos,
@@ -466,7 +467,8 @@ impl CanvasViewport {
         let doc = self.document.read();
         if let Some(stroke) = &mut self.active_stroke {
             let from = stroke.last_pos.unwrap_or(canvas_pos);
-            let smooth_alpha = (0.20 + (stroke.speed_ema * 0.25).clamp(0.0, 0.40)).clamp(0.20, 0.60);
+            let smooth_alpha =
+                (0.20 + (stroke.speed_ema * 0.25).clamp(0.0, 0.40)).clamp(0.20, 0.60);
             let smooth_pos = Point::new(
                 from.x + (canvas_pos.x - from.x) * smooth_alpha,
                 from.y + (canvas_pos.y - from.y) * smooth_alpha,
@@ -479,7 +481,9 @@ impl CanvasViewport {
 
     /// Finish the stroke: persist direction, commit to PIF, push undo entry.
     fn finish_stroke(&mut self) {
-        let Some(stroke) = self.active_stroke.take() else { return };
+        let Some(stroke) = self.active_stroke.take() else {
+            return;
+        };
         self.stroke_rev += 1;
 
         // Persist the stroke's final direction so the next stroke starts
@@ -487,7 +491,9 @@ impl CanvasViewport {
         self.last_dir_x = stroke.dir_x;
         self.last_dir_y = stroke.dir_y;
 
-        if stroke.tiles_current.is_empty() { return; }
+        if stroke.tiles_current.is_empty() {
+            return;
+        }
 
         let mut doc = self.document.write();
         // Write live tiles to PIF (bumps the document revision).
@@ -506,16 +512,16 @@ impl CanvasViewport {
     // ── Cursor overlay ────────────────────────────────────────────────────────
 
     fn render_cursor_overlay(&self, cx: &Context<Self>) -> impl IntoElement {
-        let cursor_win   = self.cursor_win;
-        let origin_rc    = self.element_origin.clone();
-        let size_rc      = self.element_size.clone();
+        let cursor_win = self.cursor_win;
+        let origin_rc = self.element_origin.clone();
+        let size_rc = self.element_size.clone();
         let brush_radius = {
             let doc = self.document.read();
             (doc.tool_state.brush_size * 0.5 * self.zoom).max(2.0)
         };
         let painting = self.active_stroke.is_some();
-        let theme    = cx.theme().clone();
-        let view_id  = cx.entity_id();
+        let theme = cx.theme().clone();
+        let view_id = cx.entity_id();
 
         gpui::canvas(
             |_bounds, _win, _cx| {},
@@ -536,7 +542,12 @@ impl CanvasViewport {
                 let wy = cw.y;
 
                 let ring = if painting {
-                    Hsla { h: 0.58, s: 0.8, l: 0.7, a: 0.9 }
+                    Hsla {
+                        h: 0.58,
+                        s: 0.8,
+                        l: 0.7,
+                        a: 0.9,
+                    }
                 } else {
                     theme.foreground.opacity(0.85)
                 };
@@ -552,17 +563,18 @@ impl CanvasViewport {
                     ));
                 }
                 let _ = b.close();
-                if let Ok(p) = b.build() { window.paint_path(p, ring); }
+                if let Ok(p) = b.build() {
+                    window.paint_path(p, ring);
+                }
 
                 let ch = 4.0f32;
-                for (ax, ay, bx2, by2) in [
-                    (wx - ch, wy, wx + ch, wy),
-                    (wx, wy - ch, wx, wy + ch),
-                ] {
+                for (ax, ay, bx2, by2) in [(wx - ch, wy, wx + ch, wy), (wx, wy - ch, wx, wy + ch)] {
                     let mut line = gpui::PathBuilder::stroke(px(1.0));
                     let _ = line.move_to(point(px(ax), px(ay)));
                     let _ = line.line_to(point(px(bx2), px(by2)));
-                    if let Ok(p) = line.build() { window.paint_path(p, ring); }
+                    if let Ok(p) = line.build() {
+                        window.paint_path(p, ring);
+                    }
                 }
             },
         )
@@ -572,7 +584,9 @@ impl CanvasViewport {
 }
 
 impl Focusable for CanvasViewport {
-    fn focus_handle(&self, _cx: &App) -> FocusHandle { self.focus_handle.clone() }
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+        self.focus_handle.clone()
+    }
 }
 
 impl EventEmitter<()> for CanvasViewport {}
@@ -630,18 +644,18 @@ impl Render for CanvasViewport {
 
                 let key = FrameKey {
                     revision,
-                    stroke_rev:   self.stroke_rev,
-                    pan:          [self.pan.x, self.pan.y],
-                    zoom:         self.zoom,
+                    stroke_rev: self.stroke_rev,
+                    pan: [self.pan.x, self.pan.y],
+                    zoom: self.zoom,
                     viewport_size,
                     surface_size: (w, h),
                 };
 
                 if self.last_frame != Some(key) {
                     let input = CanvasRenderInput {
-                        pan_offset:    key.pan,
-                        zoom:          self.zoom,
-                        canvas_size:   [canvas_w as f32, canvas_h as f32],
+                        pan_offset: key.pan,
+                        zoom: self.zoom,
+                        canvas_size: [canvas_w as f32, canvas_h as f32],
                         viewport_size,
                     };
                     let live = self.active_stroke.as_ref().map(|s| &s.tiles_current);
@@ -649,9 +663,16 @@ impl Render for CanvasViewport {
                     if let Ok(mut renderer) = self.renderer.try_lock() {
                         profiling::profile_scope!("matter: canvas render_frame");
                         renderer.render_frame(
-                            surface.device(), surface.queue(),
-                            &view, w, h, surface.format(),
-                            &input, &doc, revision, live,
+                            surface.device(),
+                            surface.queue(),
+                            &view,
+                            w,
+                            h,
+                            surface.format(),
+                            &input,
+                            &doc,
+                            revision,
+                            live,
                         );
                         drop(view);
                         surface.swap_buffers();
@@ -678,8 +699,12 @@ impl Render for CanvasViewport {
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(div().text_color(rgba(0x888899ff)).text_sm()
-                       .child(t!("Matter.InitialisingCanvas").to_string()))
+                .child(
+                    div()
+                        .text_color(rgba(0x888899ff))
+                        .text_sm()
+                        .child(t!("Matter.InitialisingCanvas").to_string()),
+                )
                 .into_any_element()
         };
 
@@ -692,56 +717,74 @@ impl Render for CanvasViewport {
             .track_focus(&self.focus_handle)
             .key_context("CanvasViewport")
             // Right-click drag → pan
-            .on_mouse_down(MouseButton::Right, cx.listener(|this, ev: &MouseDownEvent, _win, _cx| {
-                let w = Self::win_f32(ev.position);
-                this.is_panning          = true;
-                this.pan_win_start       = Some(w);
-                this.pan_offset_at_start = this.pan;
-            }))
-            .on_mouse_up(MouseButton::Right, cx.listener(|this, _ev: &MouseUpEvent, _win, _cx| {
-                this.is_panning    = false;
-                this.pan_win_start = None;
-            }))
+            .on_mouse_down(
+                MouseButton::Right,
+                cx.listener(|this, ev: &MouseDownEvent, _win, _cx| {
+                    let w = Self::win_f32(ev.position);
+                    this.is_panning = true;
+                    this.pan_win_start = Some(w);
+                    this.pan_offset_at_start = this.pan;
+                }),
+            )
+            .on_mouse_up(
+                MouseButton::Right,
+                cx.listener(|this, _ev: &MouseUpEvent, _win, _cx| {
+                    this.is_panning = false;
+                    this.pan_win_start = None;
+                }),
+            )
             // Middle-click drag → pan
-            .on_mouse_down(MouseButton::Middle, cx.listener(|this, ev: &MouseDownEvent, _win, _cx| {
-                let w = Self::win_f32(ev.position);
-                this.is_mid_panning         = true;
-                this.mid_win_start          = Some(w);
-                this.mid_offset_at_start    = this.pan;
-            }))
-            .on_mouse_up(MouseButton::Middle, cx.listener(|this, _ev: &MouseUpEvent, _win, _cx| {
-                this.is_mid_panning = false;
-                this.mid_win_start  = None;
-            }))
+            .on_mouse_down(
+                MouseButton::Middle,
+                cx.listener(|this, ev: &MouseDownEvent, _win, _cx| {
+                    let w = Self::win_f32(ev.position);
+                    this.is_mid_panning = true;
+                    this.mid_win_start = Some(w);
+                    this.mid_offset_at_start = this.pan;
+                }),
+            )
+            .on_mouse_up(
+                MouseButton::Middle,
+                cx.listener(|this, _ev: &MouseUpEvent, _win, _cx| {
+                    this.is_mid_panning = false;
+                    this.mid_win_start = None;
+                }),
+            )
             // Left-click → paint / erase / pan (Hand tool)
-            .on_mouse_down(MouseButton::Left, cx.listener(|this, ev: &MouseDownEvent, _win, cx| {
-                let w    = Self::win_f32(ev.position);
-                let tool = this.document.read().tool_state.active_tool;
-                match tool {
-                    ActiveTool::Pan => {
-                        this.is_panning          = true;
-                        this.pan_win_start       = Some(w);
-                        this.pan_offset_at_start = this.pan;
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, ev: &MouseDownEvent, _win, cx| {
+                    let w = Self::win_f32(ev.position);
+                    let tool = this.document.read().tool_state.active_tool;
+                    match tool {
+                        ActiveTool::Pan => {
+                            this.is_panning = true;
+                            this.pan_win_start = Some(w);
+                            this.pan_offset_at_start = this.pan;
+                        }
+                        ActiveTool::Paint | ActiveTool::Erase => {
+                            let local = this.to_local(w);
+                            let canvas_pos = this.canvas_of_local(local);
+                            this.start_stroke(canvas_pos);
+                            cx.notify();
+                        }
+                        _ => {}
                     }
-                    ActiveTool::Paint | ActiveTool::Erase => {
-                        let local      = this.to_local(w);
-                        let canvas_pos = this.canvas_of_local(local);
-                        this.start_stroke(canvas_pos);
+                }),
+            )
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(|this, _ev: &MouseUpEvent, _win, cx| {
+                    if this.active_stroke.is_some() {
+                        // Commits to PIF and pushes history: the toolbar's undo
+                        // state changes, so rebuild.
+                        this.finish_stroke();
                         cx.notify();
                     }
-                    _ => {}
-                }
-            }))
-            .on_mouse_up(MouseButton::Left, cx.listener(|this, _ev: &MouseUpEvent, _win, cx| {
-                if this.active_stroke.is_some() {
-                    // Commits to PIF and pushes history: the toolbar's undo
-                    // state changes, so rebuild.
-                    this.finish_stroke();
-                    cx.notify();
-                }
-                this.is_panning    = false;
-                this.pan_win_start = None;
-            }))
+                    this.is_panning = false;
+                    this.pan_win_start = None;
+                }),
+            )
             // Mouse move: cursor tracking + panning + stroke continuation
             .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _win, cx| {
                 let w = Self::win_f32(ev.position);
@@ -758,7 +801,7 @@ impl Render for CanvasViewport {
                         this.pan.y = this.mid_offset_at_start.y + (w.y - start.y);
                     }
                 } else if this.active_stroke.is_some() {
-                    let local      = this.to_local(w);
+                    let local = this.to_local(w);
                     let canvas_pos = this.canvas_of_local(local);
                     this.continue_stroke(canvas_pos);
                 }
@@ -767,20 +810,20 @@ impl Render for CanvasViewport {
             }))
             // Scroll → zoom around cursor
             .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _win, cx| {
-                let w     = Self::win_f32(ev.position);
+                let w = Self::win_f32(ev.position);
                 let local = this.to_local(w);
                 let focus = this.canvas_of_local(local);
 
                 let raw: f32 = match ev.delta {
                     ScrollDelta::Pixels(p) => p.y.into(),
-                    ScrollDelta::Lines(l)  => l.y * 32.0,
+                    ScrollDelta::Lines(l) => l.y * 32.0,
                 };
                 let factor = if raw < 0.0 { 1.1f32 } else { 0.9f32 };
                 let new_zoom = (this.zoom * factor).clamp(ZOOM_MIN, ZOOM_MAX);
 
                 this.pan.x = local.x - focus.x * new_zoom;
                 this.pan.y = local.y - focus.y * new_zoom;
-                this.zoom  = new_zoom;
+                this.zoom = new_zoom;
                 cx.notify();
             }))
             .child(wgpu_elem)

@@ -33,7 +33,7 @@ impl ToolState {
             (self.foreground_color.a * 255.0) as u8,
         ]
     }
-    
+
     /// Convert background color to RGBA8888 bytes
     pub fn background_bytes(&self) -> [u8; 4] {
         [
@@ -48,12 +48,22 @@ impl ToolState {
 impl Default for ToolState {
     fn default() -> Self {
         Self {
-            active_tool:     ActiveTool::Paint,
+            active_tool: ActiveTool::Paint,
             active_brush_id: "round_soft".to_string(),
-            brush_size:      20.0,
-            brush_opacity:   1.0,
-            foreground_color: Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-            background_color: Rgba { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+            brush_size: 20.0,
+            brush_opacity: 1.0,
+            foreground_color: Rgba {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                a: 1.0,
+            },
+            background_color: Rgba {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+                a: 1.0,
+            },
         }
     }
 }

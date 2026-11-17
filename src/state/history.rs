@@ -18,21 +18,21 @@ pub enum CommandError {
 pub type CommandResult<T> = Result<T, CommandError>;
 
 /// Command trait for undo/redo operations
-/// 
+///
 /// All actions that modify the document must implement this trait.
 /// Commands must be self-contained and store both before and after state.
 pub trait Command: Send + Sync + fmt::Debug {
     /// Execute the command (apply changes)
     fn execute(&mut self) -> CommandResult<()>;
-    
+
     /// Undo the command (revert changes)
     fn undo(&mut self) -> CommandResult<()>;
-    
+
     /// Redo is typically the same as execute
     fn redo(&mut self) -> CommandResult<()> {
         self.execute()
     }
-    
+
     /// Get a human-readable description of this command
     fn description(&self) -> &str;
 }
@@ -59,7 +59,9 @@ impl History {
     /// Create a new history manager
     pub fn new(max_size: usize) -> Self {
         Self {
-            shared: Arc::new(Mutex::new(plugin_editor_api::History::with_capacity(max_size))),
+            shared: Arc::new(Mutex::new(plugin_editor_api::History::with_capacity(
+                max_size,
+            ))),
         }
     }
 
@@ -174,69 +176,68 @@ impl Default for History {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[derive(Debug)]
     struct TestCommand {
-        value: i32,
         executed: bool,
     }
-    
+
     impl TestCommand {
-        fn new(value: i32) -> Self {
-            Self { value, executed: false }
+        fn new() -> Self {
+            Self { executed: false }
         }
     }
-    
+
     impl Command for TestCommand {
         fn execute(&mut self) -> CommandResult<()> {
             self.executed = true;
             Ok(())
         }
-        
+
         fn undo(&mut self) -> CommandResult<()> {
             self.executed = false;
             Ok(())
         }
-        
+
         fn description(&self) -> &str {
             "Test Command"
         }
     }
-    
+
     #[test]
     fn test_execute_and_undo() {
         let mut history = History::new(10);
-        let cmd = Box::new(TestCommand::new(42));
-        
+        let cmd = Box::new(TestCommand::new());
+
         history.execute(cmd).unwrap();
         assert!(history.can_undo());
         assert!(!history.can_redo());
-        
+
         history.undo().unwrap();
         assert!(!history.can_undo());
         assert!(history.can_redo());
     }
-    
+
     #[test]
     fn test_redo() {
         let mut history = History::new(10);
-        history.execute(Box::new(TestCommand::new(1))).unwrap();
+        history.execute(Box::new(TestCommand::new())).unwrap();
         history.undo().unwrap();
-        
+
         assert!(history.can_redo());
         history.redo().unwrap();
         assert!(history.can_undo());
         assert!(!history.can_redo());
     }
-    
+
     #[test]
     fn test_max_size() {
         let mut history = History::new(3);
-        
-        for i in 0..5 {
-            history.execute(Box::new(TestCommand::new(i))).unwrap();
+
+        for _ in 0..5 {
+            history.execute(Box::new(TestCommand::new())).unwrap();
         }
-        
+
         assert_eq!(history.undo_count(), 3);
     }
 }

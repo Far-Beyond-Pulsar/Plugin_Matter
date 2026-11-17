@@ -18,22 +18,22 @@ use super::types::CanvasRenderInput;
 #[repr(C)]
 #[derive(Copy, Clone)]
 struct GridUniforms {
-    pan_offset:    [f32; 2],
-    zoom:          f32,
-    _pad0:         f32,
+    pan_offset: [f32; 2],
+    zoom: f32,
+    _pad0: f32,
     viewport_size: [f32; 2],
-    canvas_size:   [f32; 2],
+    canvas_size: [f32; 2],
 }
 
 /// TileUniforms — 32 bytes, matches `tile.wgsl`
 #[repr(C)]
 #[derive(Copy, Clone)]
 struct TileUniforms {
-    pan_offset:    [f32; 2],
-    zoom:          f32,
-    _pad:          f32,
+    pan_offset: [f32; 2],
+    zoom: f32,
+    _pad: f32,
     viewport_size: [f32; 2],
-    _pad2:         [f32; 2],
+    _pad2: [f32; 2],
 }
 
 /// Vertex layout for tile quads: `canvas_pos` + `uv` (4 × f32 = 16 bytes).
@@ -41,7 +41,7 @@ struct TileUniforms {
 #[derive(Copy, Clone)]
 struct TileVertex {
     canvas_pos: [f32; 2],
-    uv:         [f32; 2],
+    uv: [f32; 2],
 }
 
 fn as_bytes<T: Copy>(v: &T) -> &[u8] {
@@ -57,33 +57,33 @@ fn slice_as_bytes<T: Copy>(v: &[T]) -> &[u8] {
 // ── Per-layer GPU resources ───────────────────────────────────────────────────
 
 struct LayerGpu {
-    texture:    wgpu::Texture,
+    texture: wgpu::Texture,
     bind_group: wgpu::BindGroup,
-    width:      u32,
-    height:     u32,
+    width: u32,
+    height: u32,
     /// Document revision the texture was last fully synced at. While it is
     /// current the full pass (which loads every tile from PIF) is skipped;
     /// a live stroke then only uploads its own tiles.
     synced_rev: Option<u64>,
     /// The last upload included live stroke tiles (needs one refresh after).
-    had_live:   bool,
+    had_live: bool,
     /// Hash of the content last uploaded per tile (`None` = empty); drives delta upload.
-    tile_hash:  HashMap<(u32, u32), Option<u64>>,
+    tile_hash: HashMap<(u32, u32), Option<u64>>,
 }
 
 // ── Initialised GPU state ─────────────────────────────────────────────────────
 
 struct GpuState {
     // ── Grid pass ──────────────────────────────────────────────────────────
-    grid_pipeline:    wgpu::RenderPipeline,
+    grid_pipeline: wgpu::RenderPipeline,
     grid_uniform_buf: wgpu::Buffer,
-    grid_bind_group:  wgpu::BindGroup,
+    grid_bind_group: wgpu::BindGroup,
 
     // ── Tile pass ──────────────────────────────────────────────────────────
-    tile_pipeline:          wgpu::RenderPipeline,
-    tile_uniform_buf:       wgpu::Buffer,
+    tile_pipeline: wgpu::RenderPipeline,
+    tile_uniform_buf: wgpu::Buffer,
     tile_bind_group_layout: wgpu::BindGroupLayout,
-    tile_sampler:           wgpu::Sampler,
+    tile_sampler: wgpu::Sampler,
 
     // ── Per-layer composite textures (keyed by layer id) ───────────────────
     layer_gpu: HashMap<String, LayerGpu>,
@@ -109,12 +109,12 @@ impl CanvasRenderer {
     pub fn render_frame(
         &mut self,
         device: &wgpu::Device,
-        queue:  &wgpu::Queue,
-        view:   &wgpu::TextureView,
-        width:  u32,
+        queue: &wgpu::Queue,
+        view: &wgpu::TextureView,
+        width: u32,
         height: u32,
         format: wgpu::TextureFormat,
-        input:  &CanvasRenderInput,
+        input: &CanvasRenderInput,
         document: &Document,
         revision: u64,
         live_tiles: Option<&HashMap<(String, u32, u32), Vec<u8>>>,
@@ -131,26 +131,26 @@ impl CanvasRenderer {
         let [vp_w, vp_h] = if input.viewport_size[0] > 0.0 && input.viewport_size[1] > 0.0 {
             input.viewport_size
         } else {
-            [width as f32, height as f32]  // fallback before first layout
+            [width as f32, height as f32] // fallback before first layout
         };
 
         // ── Update grid uniforms ───────────────────────────────────────────
         let grid_u = GridUniforms {
-            pan_offset:    input.pan_offset,
-            zoom:          input.zoom,
-            _pad0:         0.0,
+            pan_offset: input.pan_offset,
+            zoom: input.zoom,
+            _pad0: 0.0,
             viewport_size: [vp_w, vp_h],
-            canvas_size:   input.canvas_size,
+            canvas_size: input.canvas_size,
         };
         queue.write_buffer(&state.grid_uniform_buf, 0, as_bytes(&grid_u));
 
         // ── Update tile uniforms ───────────────────────────────────────────
         let tile_u = TileUniforms {
-            pan_offset:    input.pan_offset,
-            zoom:          input.zoom,
-            _pad:          0.0,
+            pan_offset: input.pan_offset,
+            zoom: input.zoom,
+            _pad: 0.0,
             viewport_size: [vp_w, vp_h],
-            _pad2:         [0.0; 2],
+            _pad2: [0.0; 2],
         };
         queue.write_buffer(&state.tile_uniform_buf, 0, as_bytes(&tile_u));
 
@@ -168,17 +168,22 @@ impl CanvasRenderer {
                 label: Some("canvas_grid_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
-                    depth_slice:    None,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load:  wgpu::LoadOp::Clear(wgpu::Color { r: 0.118, g: 0.118, b: 0.137, a: 1.0 }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.118,
+                            g: 0.118,
+                            b: 0.137,
+                            a: 1.0,
+                        }),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
-                timestamp_writes:         None,
-                occlusion_query_set:      None,
-                multiview_mask:           None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
             });
             pass.set_pipeline(&state.grid_pipeline);
             pass.set_bind_group(0, &state.grid_bind_group, &[]);
@@ -191,17 +196,17 @@ impl CanvasRenderer {
                 label: Some("canvas_tile_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
-                    depth_slice:    None,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load:  wgpu::LoadOp::Load,
+                        load: wgpu::LoadOp::Load,
                         store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
-                timestamp_writes:         None,
-                occlusion_query_set:      None,
-                multiview_mask:           None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
             });
             pass.set_pipeline(&state.tile_pipeline);
 
@@ -212,23 +217,43 @@ impl CanvasRenderer {
                     Layer::Raster { id, visible, .. } => (id.clone(), *visible),
                     Layer::Vector { id, visible, .. } => (id.clone(), *visible),
                 };
-                if !visible { continue; }
+                if !visible {
+                    continue;
+                }
 
                 if let Some(layer_gpu) = state.layer_gpu.get(&id) {
-                    let cw = layer_gpu.width  as f32;
+                    let cw = layer_gpu.width as f32;
                     let ch = layer_gpu.height as f32;
                     let quad: [TileVertex; 6] = [
-                        TileVertex { canvas_pos: [0.0, 0.0], uv: [0.0, 0.0] },
-                        TileVertex { canvas_pos: [cw,  0.0], uv: [1.0, 0.0] },
-                        TileVertex { canvas_pos: [0.0, ch ], uv: [0.0, 1.0] },
-                        TileVertex { canvas_pos: [cw,  0.0], uv: [1.0, 0.0] },
-                        TileVertex { canvas_pos: [cw,  ch ], uv: [1.0, 1.0] },
-                        TileVertex { canvas_pos: [0.0, ch ], uv: [0.0, 1.0] },
+                        TileVertex {
+                            canvas_pos: [0.0, 0.0],
+                            uv: [0.0, 0.0],
+                        },
+                        TileVertex {
+                            canvas_pos: [cw, 0.0],
+                            uv: [1.0, 0.0],
+                        },
+                        TileVertex {
+                            canvas_pos: [0.0, ch],
+                            uv: [0.0, 1.0],
+                        },
+                        TileVertex {
+                            canvas_pos: [cw, 0.0],
+                            uv: [1.0, 0.0],
+                        },
+                        TileVertex {
+                            canvas_pos: [cw, ch],
+                            uv: [1.0, 1.0],
+                        },
+                        TileVertex {
+                            canvas_pos: [0.0, ch],
+                            uv: [0.0, 1.0],
+                        },
                     ];
                     let vbuf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label:    Some("tile_quad_vbuf"),
+                        label: Some("tile_quad_vbuf"),
                         contents: slice_as_bytes(&quad),
-                        usage:    wgpu::BufferUsages::VERTEX,
+                        usage: wgpu::BufferUsages::VERTEX,
                     });
 
                     pass.set_bind_group(0, &layer_gpu.bind_group, &[]);
@@ -244,11 +269,11 @@ impl CanvasRenderer {
     // ── Private helpers ───────────────────────────────────────────────────────
 
     fn sync_layers(
-        state:      &mut GpuState,
-        device:     &wgpu::Device,
-        queue:      &wgpu::Queue,
-        document:   &Document,
-        revision:   u64,
+        state: &mut GpuState,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        document: &Document,
+        revision: u64,
         live_tiles: Option<&HashMap<(String, u32, u32), Vec<u8>>>,
     ) {
         let (canvas_w, canvas_h) = document.dimensions();
@@ -260,46 +285,64 @@ impl CanvasRenderer {
                 Layer::Raster { id, .. } | Layer::Vector { id, .. } => id.clone(),
             };
 
-            let needs_create = state.layer_gpu
+            let needs_create = state
+                .layer_gpu
                 .get(&id)
                 .map(|g| g.width != canvas_w || g.height != canvas_h)
                 .unwrap_or(true);
 
             if needs_create {
                 let texture = device.create_texture(&wgpu::TextureDescriptor {
-                    label:           Some("layer_composite"),
-                    size:            wgpu::Extent3d { width: canvas_w, height: canvas_h, depth_or_array_layers: 1 },
+                    label: Some("layer_composite"),
+                    size: wgpu::Extent3d {
+                        width: canvas_w,
+                        height: canvas_h,
+                        depth_or_array_layers: 1,
+                    },
                     mip_level_count: 1,
-                    sample_count:    1,
-                    dimension:       wgpu::TextureDimension::D2,
-                    format:          wgpu::TextureFormat::Rgba8UnormSrgb,
-                    usage:           wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                    view_formats:    &[],
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[],
                 });
                 let tex_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
                 let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label:   Some("layer_bg"),
-                    layout:  &state.tile_bind_group_layout,
+                    label: Some("layer_bg"),
+                    layout: &state.tile_bind_group_layout,
                     entries: &[
-                        wgpu::BindGroupEntry { binding: 0, resource: state.tile_uniform_buf.as_entire_binding() },
-                        wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&tex_view) },
-                        wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::Sampler(&state.tile_sampler) },
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: state.tile_uniform_buf.as_entire_binding(),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::TextureView(&tex_view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::Sampler(&state.tile_sampler),
+                        },
                     ],
                 });
-                state.layer_gpu.insert(id.clone(), LayerGpu {
-                    texture,
-                    bind_group,
-                    width:  canvas_w,
-                    height: canvas_h,
-                    synced_rev: None,
-                    had_live:   false,
-                    tile_hash:  HashMap::new(),
-                });
+                state.layer_gpu.insert(
+                    id.clone(),
+                    LayerGpu {
+                        texture,
+                        bind_group,
+                        width: canvas_w,
+                        height: canvas_h,
+                        synced_rev: None,
+                        had_live: false,
+                        tile_hash: HashMap::new(),
+                    },
+                );
             }
 
             let live_here = live_tiles.is_some_and(|m| m.keys().any(|k| k.0 == id));
-            let (current, had_live) = state.layer_gpu.get(&id)
-                .map_or((false, false), |g| (g.synced_rev == Some(revision), g.had_live));
+            let (current, had_live) = state.layer_gpu.get(&id).map_or((false, false), |g| {
+                (g.synced_rev == Some(revision), g.had_live)
+            });
             if current && !live_here && !had_live {
                 continue;
             }
@@ -308,7 +351,9 @@ impl CanvasRenderer {
             let live_only = current && live_here;
             // Delta upload: hash every tile and write only the ones whose
             // content differs from what the texture already holds.
-            let Some(layer_gpu) = state.layer_gpu.get_mut(&id) else { continue };
+            let Some(layer_gpu) = state.layer_gpu.get_mut(&id) else {
+                continue;
+            };
             let tile_size: u32 = 256;
             let tiles_x = canvas_w.div_ceil(tile_size);
             let tiles_y = canvas_h.div_ceil(tile_size);
@@ -319,11 +364,12 @@ impl CanvasRenderer {
                 for tx in 0..tiles_x {
                     // Prefer live stroke data over committed PIF data so brushstrokes
                     // appear immediately during painting.
-                    let tile_data: Option<Vec<u8>> = match live_tiles.and_then(|l| l.get(&(id.clone(), tx, ty))) {
-                        Some(d) => Some(d.clone()),
-                        None if live_only => continue,
-                        None => document.load_tile(&id, tx, ty).ok(),
-                    };
+                    let tile_data: Option<Vec<u8>> =
+                        match live_tiles.and_then(|l| l.get(&(id.clone(), tx, ty))) {
+                            Some(d) => Some(d.clone()),
+                            None if live_only => continue,
+                            None => document.load_tile(&id, tx, ty).ok(),
+                        };
                     total += 1;
                     let tile_data = tile_data.filter(|d| !d.is_empty());
 
@@ -336,12 +382,16 @@ impl CanvasRenderer {
                         h.finish()
                     });
                     let previous = layer_gpu.tile_hash.get(&(tx, ty)).copied().flatten();
-                    if hash == previous { continue }
+                    if hash == previous {
+                        continue;
+                    }
                     layer_gpu.tile_hash.insert((tx, ty), hash);
 
                     let tile_w = tile_size.min(canvas_w.saturating_sub(tx * tile_size));
                     let tile_h = tile_size.min(canvas_h.saturating_sub(ty * tile_size));
-                    if tile_w == 0 || tile_h == 0 { continue }
+                    if tile_w == 0 || tile_h == 0 {
+                        continue;
+                    }
 
                     let zeros;
                     let bytes: &[u8] = match tile_data.as_deref() {
@@ -353,22 +403,32 @@ impl CanvasRenderer {
                     };
                     // Source rows are `tile_size` pixels wide regardless of the
                     // (possibly clipped) edge tile; guard against short data.
-                    if bytes.len() < ((tile_h - 1) * tile_size * 4 + tile_w * 4) as usize { continue }
+                    if bytes.len() < ((tile_h - 1) * tile_size * 4 + tile_w * 4) as usize {
+                        continue;
+                    }
                     uploaded += 1;
                     queue.write_texture(
                         wgpu::TexelCopyTextureInfo {
-                            texture:   &layer_gpu.texture,
+                            texture: &layer_gpu.texture,
                             mip_level: 0,
-                            origin:    wgpu::Origin3d { x: tx * tile_size, y: ty * tile_size, z: 0 },
-                            aspect:    wgpu::TextureAspect::All,
+                            origin: wgpu::Origin3d {
+                                x: tx * tile_size,
+                                y: ty * tile_size,
+                                z: 0,
+                            },
+                            aspect: wgpu::TextureAspect::All,
                         },
                         bytes,
                         wgpu::TexelCopyBufferLayout {
-                            offset:         0,
-                            bytes_per_row:  Some(tile_size * 4),
+                            offset: 0,
+                            bytes_per_row: Some(tile_size * 4),
                             rows_per_image: Some(tile_h),
                         },
-                        wgpu::Extent3d { width: tile_w, height: tile_h, depth_or_array_layers: 1 },
+                        wgpu::Extent3d {
+                            width: tile_w,
+                            height: tile_h,
+                            depth_or_array_layers: 1,
+                        },
                     );
                 }
             }
@@ -378,91 +438,94 @@ impl CanvasRenderer {
         }
 
         // Drop GPU resources for removed layers.
-        let live_ids: Vec<String> = layers.iter().map(|l| {
-            use pulsar_image_format::model::Layer;
-            match l {
-                Layer::Raster { id, .. } | Layer::Vector { id, .. } => id.clone(),
-            }
-        }).collect();
+        let live_ids: Vec<String> = layers
+            .iter()
+            .map(|l| {
+                use pulsar_image_format::model::Layer;
+                match l {
+                    Layer::Raster { id, .. } | Layer::Vector { id, .. } => id.clone(),
+                }
+            })
+            .collect();
         state.layer_gpu.retain(|k, _| live_ids.contains(k));
     }
 
     fn create_gpu_state(device: &wgpu::Device, format: wgpu::TextureFormat) -> GpuState {
         // ── Grid pipeline ──────────────────────────────────────────────────
         let grid_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label:  Some("grid_shader"),
+            label: Some("grid_shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/grid.wgsl").into()),
         });
 
         let grid_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label:   Some("grid_bgl"),
+            label: Some("grid_bgl"),
             entries: &[wgpu::BindGroupLayoutEntry {
-                binding:    0,
+                binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
-                ty:         wgpu::BindingType::Buffer {
-                    ty:                 wgpu::BufferBindingType::Uniform,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
-                    min_binding_size:   None,
+                    min_binding_size: None,
                 },
                 count: None,
             }],
         });
 
         let grid_uniform_buf = device.create_buffer(&wgpu::BufferDescriptor {
-            label:              Some("grid_uniform_buf"),
-            size:               std::mem::size_of::<GridUniforms>() as u64,
-            usage:              wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            label: Some("grid_uniform_buf"),
+            size: std::mem::size_of::<GridUniforms>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let grid_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label:   Some("grid_bg"),
-            layout:  &grid_bgl,
+            label: Some("grid_bg"),
+            layout: &grid_bgl,
             entries: &[wgpu::BindGroupEntry {
-                binding:  0,
+                binding: 0,
                 resource: grid_uniform_buf.as_entire_binding(),
             }],
         });
 
         let grid_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label:              Some("grid_layout"),
+            label: Some("grid_layout"),
             bind_group_layouts: &[Some(&grid_bgl)],
-            immediate_size:     0,
+            immediate_size: 0,
         });
 
         let grid_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label:  Some("grid_pipeline"),
+            label: Some("grid_pipeline"),
             layout: Some(&grid_layout),
             vertex: wgpu::VertexState {
-                module:              &grid_shader,
-                entry_point:         Some("vs_main"),
-                buffers:             &[],
+                module: &grid_shader,
+                entry_point: Some("vs_main"),
+                buffers: &[],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             primitive: wgpu::PrimitiveState {
-                topology:  wgpu::PrimitiveTopology::TriangleList,
+                topology: wgpu::PrimitiveTopology::TriangleList,
                 cull_mode: None,
                 ..Default::default()
             },
             depth_stencil: None,
-            multisample:   wgpu::MultisampleState::default(),
+            multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
-                module:              &grid_shader,
-                entry_point:         Some("fs_main"),
+                module: &grid_shader,
+                entry_point: Some("fs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format,
-                    blend:      Some(wgpu::BlendState::ALPHA_BLENDING),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
             multiview_mask: None,
-            cache:          None,
+            cache: None,
         });
 
         // ── Tile pipeline ──────────────────────────────────────────────────
         let tile_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label:  Some("tile_shader"),
+            label: Some("tile_shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/tile.wgsl").into()),
         });
 
@@ -470,25 +533,28 @@ impl CanvasRenderer {
             label: Some("tile_bgl"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
-                    binding: 0, visibility: wgpu::ShaderStages::VERTEX,
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
                     ty: wgpu::BindingType::Buffer {
-                        ty:                 wgpu::BufferBindingType::Uniform,
+                        ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size:   None,
+                        min_binding_size: None,
                     },
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 1, visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
-                        sample_type:    wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled:   false,
+                        multisampled: false,
                     },
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 2, visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
@@ -496,62 +562,70 @@ impl CanvasRenderer {
         });
 
         let tile_uniform_buf = device.create_buffer(&wgpu::BufferDescriptor {
-            label:              Some("tile_uniform_buf"),
-            size:               std::mem::size_of::<TileUniforms>() as u64,
-            usage:              wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            label: Some("tile_uniform_buf"),
+            size: std::mem::size_of::<TileUniforms>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let tile_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label:          Some("tile_sampler"),
+            label: Some("tile_sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
-            mag_filter:     wgpu::FilterMode::Nearest,
-            min_filter:     wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
 
         let tile_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label:              Some("tile_layout"),
+            label: Some("tile_layout"),
             bind_group_layouts: &[Some(&tile_bgl)],
-            immediate_size:     0,
+            immediate_size: 0,
         });
 
         let tile_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label:  Some("tile_pipeline"),
+            label: Some("tile_pipeline"),
             layout: Some(&tile_layout),
             vertex: wgpu::VertexState {
-                module:              &tile_shader,
-                entry_point:         Some("vs_main"),
+                module: &tile_shader,
+                entry_point: Some("vs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 buffers: &[Some(wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<TileVertex>() as u64,
-                    step_mode:    wgpu::VertexStepMode::Vertex,
+                    step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: &[
-                        wgpu::VertexAttribute { offset: 0, shader_location: 0, format: wgpu::VertexFormat::Float32x2 },
-                        wgpu::VertexAttribute { offset: 8, shader_location: 1, format: wgpu::VertexFormat::Float32x2 },
+                        wgpu::VertexAttribute {
+                            offset: 0,
+                            shader_location: 0,
+                            format: wgpu::VertexFormat::Float32x2,
+                        },
+                        wgpu::VertexAttribute {
+                            offset: 8,
+                            shader_location: 1,
+                            format: wgpu::VertexFormat::Float32x2,
+                        },
                     ],
                 })],
             },
             primitive: wgpu::PrimitiveState {
-                topology:  wgpu::PrimitiveTopology::TriangleList,
+                topology: wgpu::PrimitiveTopology::TriangleList,
                 cull_mode: None,
                 ..Default::default()
             },
             depth_stencil: None,
-            multisample:   wgpu::MultisampleState::default(),
+            multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
-                module:              &tile_shader,
-                entry_point:         Some("fs_main"),
+                module: &tile_shader,
+                entry_point: Some("fs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format,
-                    blend:      Some(wgpu::BlendState::ALPHA_BLENDING),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
             multiview_mask: None,
-            cache:          None,
+            cache: None,
         });
 
         GpuState {

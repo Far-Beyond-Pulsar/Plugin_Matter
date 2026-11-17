@@ -36,7 +36,7 @@ pub struct BrushChannels {
 pub struct BrushMask {
     /// Raw RGBA8 pixel data — length == `width * height * 4`.
     pub pixels: Vec<u8>,
-    pub width:  u32,
+    pub width: u32,
     pub height: u32,
 }
 
@@ -51,7 +51,11 @@ impl BrushMask {
             width as u64 * height as u64 * 4,
             "pixel buffer length mismatch"
         );
-        Self { pixels, width, height }
+        Self {
+            pixels,
+            width,
+            height,
+        }
     }
 
     /// Sample a single raw pixel.
@@ -59,10 +63,10 @@ impl BrushMask {
     fn fetch(&self, x: usize, y: usize) -> BrushChannels {
         let i = (y * self.width as usize + x) * 4;
         BrushChannels {
-            intensity:      self.pixels[i]     as f32 / 255.0,
+            intensity: self.pixels[i] as f32 / 255.0,
             reflectiveness: self.pixels[i + 1] as f32 / 255.0,
-            smear:          self.pixels[i + 2] as f32 / 255.0,
-            roughness:      self.pixels[i + 3] as f32 / 255.0,
+            smear: self.pixels[i + 2] as f32 / 255.0,
+            roughness: self.pixels[i + 3] as f32 / 255.0,
         }
     }
 
@@ -71,15 +75,15 @@ impl BrushMask {
     /// Bilinear sampling is critical for rotated masks — nearest-neighbour
     /// produces severe staircase aliasing on any non-axis-aligned brush shape.
     pub fn sample(&self, u: f32, v: f32) -> BrushChannels {
-        let w = (self.width  - 1) as f32;
+        let w = (self.width - 1) as f32;
         let h = (self.height - 1) as f32;
 
         let xf = u.clamp(0.0, 1.0) * w;
         let yf = v.clamp(0.0, 1.0) * h;
 
-        let x0 = (xf.floor() as usize).min(self.width  as usize - 1);
+        let x0 = (xf.floor() as usize).min(self.width as usize - 1);
         let y0 = (yf.floor() as usize).min(self.height as usize - 1);
-        let x1 = (x0 + 1).min(self.width  as usize - 1);
+        let x1 = (x0 + 1).min(self.width as usize - 1);
         let y1 = (y0 + 1).min(self.height as usize - 1);
 
         let tx = xf - xf.floor();
@@ -92,16 +96,21 @@ impl BrushMask {
 
         // Bilerp each channel independently.
         let blerp = |a: f32, b: f32, c: f32, d: f32| {
-            let top    = a + (b - a) * tx;
+            let top = a + (b - a) * tx;
             let bottom = c + (d - c) * tx;
             top + (bottom - top) * ty
         };
 
         BrushChannels {
-            intensity:      blerp(s00.intensity,      s10.intensity,      s01.intensity,      s11.intensity),
-            reflectiveness: blerp(s00.reflectiveness, s10.reflectiveness, s01.reflectiveness, s11.reflectiveness),
-            smear:          blerp(s00.smear,          s10.smear,          s01.smear,          s11.smear),
-            roughness:      blerp(s00.roughness,      s10.roughness,      s01.roughness,      s11.roughness),
+            intensity: blerp(s00.intensity, s10.intensity, s01.intensity, s11.intensity),
+            reflectiveness: blerp(
+                s00.reflectiveness,
+                s10.reflectiveness,
+                s01.reflectiveness,
+                s11.reflectiveness,
+            ),
+            smear: blerp(s00.smear, s10.smear, s01.smear, s11.smear),
+            roughness: blerp(s00.roughness, s10.roughness, s01.roughness, s11.roughness),
         }
     }
 
@@ -119,7 +128,7 @@ impl BrushMask {
                 let ch = self.sample(u, v);
                 let v8 = (ch.intensity * 255.0) as u8;
                 let i = ((ty * T + tx) * 4) as usize;
-                out[i]     = v8;
+                out[i] = v8;
                 out[i + 1] = v8;
                 out[i + 2] = v8;
                 out[i + 3] = 255;
@@ -139,19 +148,23 @@ impl BrushMask {
             for x in 0..SIZE {
                 let dx = x as f32 + 0.5 - half;
                 let dy = y as f32 + 0.5 - half;
-                let d  = (dx * dx + dy * dy).sqrt();
+                let d = (dx * dx + dy * dy).sqrt();
                 if d < half {
                     // Quadratic falloff: full coverage at centre, zero at edge.
                     let t = 1.0 - (d / half);
                     let v = (t * t * 255.0) as u8;
                     let i = ((y * SIZE + x) * 4) as usize;
-                    pixels[i]     = v; // R = intensity
+                    pixels[i] = v; // R = intensity
                     pixels[i + 1] = 0; // G = reflectiveness
                     pixels[i + 2] = 0; // B = smear
                     pixels[i + 3] = v; // A = roughness (mirrors intensity)
                 }
             }
         }
-        Self { pixels, width: SIZE, height: SIZE }
+        Self {
+            pixels,
+            width: SIZE,
+            height: SIZE,
+        }
     }
 }

@@ -1,9 +1,5 @@
 //! Plugin registration and metadata
 
-use gpui::App;
-use std::path::PathBuf;
-use std::sync::Arc;
-
 /// Matter texture editor plugin
 pub struct MatterPlugin {
     // Plugin state will go here
