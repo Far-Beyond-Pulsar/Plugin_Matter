@@ -15,20 +15,18 @@ use crate::brush_engine::{BrushDropdownItem, BrushRegistry};
 use crate::canvas::CanvasViewport;
 use crate::panels::{render_layers_panel, render_properties_panel};
 use crate::state::Document;
-use crate::tools::ToolRegistry;
 use crate::ui::toolbar::render_toolbar;
 
 pub struct MatterEditorPanel {
-    focus_handle:    FocusHandle,
-    pub document:    Arc<RwLock<Document>>,
-    _tools:          Arc<RwLock<ToolRegistry>>,
-    canvas:          Entity<CanvasViewport>,
-    fg_picker:       Entity<ColorPickerState>,
-    bg_picker:       Entity<ColorPickerState>,
-    brush_dropdown:  Entity<DropdownState<Vec<BrushDropdownItem>>>,
-    brush_size:      Entity<SliderState>,
+    focus_handle: FocusHandle,
+    pub document: Arc<RwLock<Document>>,
+    canvas: Entity<CanvasViewport>,
+    fg_picker: Entity<ColorPickerState>,
+    bg_picker: Entity<ColorPickerState>,
+    brush_dropdown: Entity<DropdownState<Vec<BrushDropdownItem>>>,
+    brush_size: Entity<SliderState>,
     _brush_registry: Arc<BrushRegistry>,
-    _subs:           Vec<Subscription>,
+    _subs: Vec<Subscription>,
 }
 
 impl MatterEditorPanel {
@@ -39,48 +37,43 @@ impl MatterEditorPanel {
     /// `brush_dropdown` and `brush_registry` must be created in the enclosing
     /// `cx.open_window` callback where a `Window` reference is available.
     pub fn new(
-        document:       Document,
-        fg_picker:      Entity<ColorPickerState>,
-        bg_picker:      Entity<ColorPickerState>,
+        document: Document,
+        fg_picker: Entity<ColorPickerState>,
+        bg_picker: Entity<ColorPickerState>,
         brush_dropdown: Entity<DropdownState<Vec<BrushDropdownItem>>>,
         brush_registry: Arc<BrushRegistry>,
-        cx:             &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) -> Self {
         let doc_arc = Arc::new(RwLock::new(document));
 
-        let mut tools = ToolRegistry::new();
-        tools.register(Box::new(crate::tools::PaintTool::new()));
-        tools.register(Box::new(crate::tools::EraserTool::new()));
-        tools.register(Box::new(crate::tools::FillTool::new()));
-        tools.register(Box::new(crate::tools::EyedropperTool::new()));
-        tools.register(Box::new(crate::tools::HandTool::new()));
-
-        let canvas = cx.new(|cx| {
-            CanvasViewport::new(doc_arc.clone(), brush_registry.clone(), cx)
-        });
+        let canvas = cx.new(|cx| CanvasViewport::new(doc_arc.clone(), brush_registry.clone(), cx));
 
         let mut subs = Vec::new();
 
         // Foreground colour picker → tool state
         {
             let doc = doc_arc.clone();
-            subs.push(cx.subscribe(&fg_picker, move |_, _, ev: &ColorPickerEvent, cx| {
-                if let ColorPickerEvent::Change(Some(hsla)) = ev {
-                    doc.write().tool_state.foreground_color = (*hsla).into();
-                    cx.notify();
-                }
-            }));
+            subs.push(
+                cx.subscribe(&fg_picker, move |_, _, ev: &ColorPickerEvent, cx| {
+                    if let ColorPickerEvent::Change(Some(hsla)) = ev {
+                        doc.write().tool_state.foreground_color = (*hsla).into();
+                        cx.notify();
+                    }
+                }),
+            );
         }
 
         // Background colour picker → tool state
         {
             let doc = doc_arc.clone();
-            subs.push(cx.subscribe(&bg_picker, move |_, _, ev: &ColorPickerEvent, cx| {
-                if let ColorPickerEvent::Change(Some(hsla)) = ev {
-                    doc.write().tool_state.background_color = (*hsla).into();
-                    cx.notify();
-                }
-            }));
+            subs.push(
+                cx.subscribe(&bg_picker, move |_, _, ev: &ColorPickerEvent, cx| {
+                    if let ColorPickerEvent::Change(Some(hsla)) = ev {
+                        doc.write().tool_state.background_color = (*hsla).into();
+                        cx.notify();
+                    }
+                }),
+            );
         }
 
         // Brush dropdown selection → tool state
@@ -107,31 +100,33 @@ impl MatterEditorPanel {
         });
         {
             let doc = doc_arc.clone();
-            subs.push(cx.subscribe(&brush_size, move |_, _, ev: &SliderEvent, cx| {
-                if let SliderEvent::Change(v) = ev {
+            subs.push(
+                cx.subscribe(&brush_size, move |_, _, ev: &SliderEvent, cx| {
+                    let SliderEvent::Change(v) = ev;
                     doc.write().tool_state.brush_size = v.end();
                     cx.notify();
-                }
-            }));
+                }),
+            );
         }
 
         Self {
-            focus_handle:    cx.focus_handle(),
-            document:        doc_arc,
-            _tools:          Arc::new(RwLock::new(tools)),
+            focus_handle: cx.focus_handle(),
+            document: doc_arc,
             canvas,
             fg_picker,
             bg_picker,
             brush_dropdown,
             brush_size,
             _brush_registry: brush_registry,
-            _subs:           subs,
+            _subs: subs,
         }
     }
 }
 
 impl Panel for MatterEditorPanel {
-    fn panel_name(&self) -> &'static str { "matter_editor" }
+    fn panel_name(&self) -> &'static str {
+        "matter_editor"
+    }
 
     fn title(&self, _window: &Window, _cx: &App) -> AnyElement {
         "Matter Editor".into_any_element()
@@ -168,7 +163,9 @@ impl MatterEditorPanel {
 }
 
 impl Focusable for MatterEditorPanel {
-    fn focus_handle(&self, _cx: &App) -> FocusHandle { self.focus_handle.clone() }
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+        self.focus_handle.clone()
+    }
 }
 
 impl Render for MatterEditorPanel {
@@ -188,7 +185,13 @@ impl Render for MatterEditorPanel {
             .on_action(cx.listener(|this, _: &plugin_editor_api::Redo, _, cx| this.redo(cx)))
             .child({
                 let doc = self.document.read();
-                render_toolbar(&doc, self.document.clone(), canvas_id, self.focus_handle.clone(), theme)
+                render_toolbar(
+                    &doc,
+                    self.document.clone(),
+                    canvas_id,
+                    self.focus_handle.clone(),
+                    theme,
+                )
             })
             .child(
                 div()
@@ -201,7 +204,7 @@ impl Render for MatterEditorPanel {
                             .flex_1()
                             .min_w_0()
                             .relative()
-                            .child(self.canvas.clone())
+                            .child(self.canvas.clone()),
                     )
                     .child(render_properties_panel(
                         &self.document.read(),
@@ -210,7 +213,7 @@ impl Render for MatterEditorPanel {
                         &self.brush_dropdown,
                         &self.brush_size,
                         theme,
-                    ))
+                    )),
             )
     }
 }

@@ -59,15 +59,15 @@ const TILE_SZ: usize = TILE as usize;
 /// - `color`         — RGBA8 paint colour.
 /// - `tile_offset_*` — canvas-space top-left corner of this tile.
 pub fn stamp_into_wet(
-    wet_tile:      &mut [u8],
-    mask:          &BrushMask,
-    center:        Point<f32>,
-    size_x:        f32,
-    size_y:        f32,
-    angle:         f32,
-    flow:          f32,
-    opacity:       f32,
-    color:         [u8; 4],
+    wet_tile: &mut [u8],
+    mask: &BrushMask,
+    center: Point<f32>,
+    size_x: f32,
+    size_y: f32,
+    angle: f32,
+    flow: f32,
+    opacity: f32,
+    color: [u8; 4],
     tile_offset_x: u32,
     tile_offset_y: u32,
 ) {
@@ -76,7 +76,7 @@ pub fn stamp_into_wet(
     }
 
     // Rotation: tip (V=0) aligns with stroke direction.
-    let a     = angle + FRAC_PI_2;
+    let a = angle + FRAC_PI_2;
     let cos_a = a.cos();
     let sin_a = a.sin();
 
@@ -95,7 +95,7 @@ pub fn stamp_into_wet(
             let dy = py as f32 + 0.5 - center.y;
 
             // Rotate into brush-local UV space (bilinear sample).
-            let dx_l =  dx * cos_a + dy * sin_a;
+            let dx_l = dx * cos_a + dy * sin_a;
             let dy_l = -dx * sin_a + dy * cos_a;
             let u = dx_l / size_x + 0.5;
             let v = dy_l / size_y + 0.5;
@@ -110,12 +110,16 @@ pub fn stamp_into_wet(
             }
 
             let src_a = (ch.intensity * flow).clamp(0.0, 1.0);
-            if src_a < 1.0 / 255.0 { continue; }
+            if src_a < 1.0 / 255.0 {
+                continue;
+            }
 
-            let lx  = (px - tile_offset_x) as usize;
-            let ly  = (py - tile_offset_y) as usize;
+            let lx = (px - tile_offset_x) as usize;
+            let ly = (py - tile_offset_y) as usize;
             let idx = (ly * TILE_SZ + lx) * 4;
-            if idx + 3 >= wet_tile.len() { continue; }
+            if idx + 3 >= wet_tile.len() {
+                continue;
+            }
 
             let dst_a = wet_tile[idx + 3] as f32 / 255.0;
             let raw_a = src_a + dst_a * (1.0 - src_a);
@@ -150,11 +154,7 @@ pub fn stamp_into_wet(
 /// `base_tile` snapshot and the accumulated `wet_tile`.  This guarantees
 /// the displayed result reflects the correct opacity ceiling even as stamps
 /// accumulate.
-pub fn composite_wet_over_base(
-    out_tile:  &mut [u8],
-    base_tile: &[u8],
-    wet_tile:  &[u8],
-) {
+pub fn composite_wet_over_base(out_tile: &mut [u8], base_tile: &[u8], wet_tile: &[u8]) {
     let n = out_tile.len().min(base_tile.len()).min(wet_tile.len());
     let pixels = n / 4;
     for i in 0..pixels {
@@ -162,17 +162,17 @@ pub fn composite_wet_over_base(
         let wet_a = wet_tile[b + 3] as f32 / 255.0;
         if wet_a < 1.0 / 255.0 {
             // No paint here — pass the base through unchanged.
-            out_tile[b]     = base_tile[b];
+            out_tile[b] = base_tile[b];
             out_tile[b + 1] = base_tile[b + 1];
             out_tile[b + 2] = base_tile[b + 2];
             out_tile[b + 3] = base_tile[b + 3];
             continue;
         }
         let base_a = base_tile[b + 3] as f32 / 255.0;
-        let out_a  = wet_a + base_a * (1.0 - wet_a);
+        let out_a = wet_a + base_a * (1.0 - wet_a);
         if out_a > 0.0 {
             for c in 0..3 {
-                let wc = wet_tile[b + c]  as f32 / 255.0;
+                let wc = wet_tile[b + c] as f32 / 255.0;
                 let bc = base_tile[b + c] as f32 / 255.0;
                 let oc = (wc * wet_a + bc * base_a * (1.0 - wet_a)) / out_a;
                 out_tile[b + c] = (oc * 255.0).min(255.0).round() as u8;
@@ -186,19 +186,15 @@ pub fn composite_wet_over_base(
 ///
 /// `wet_tile`'s alpha encodes how much to erase; base colour is preserved
 /// (matching Photoshop's eraser behaviour on non-background layers).
-pub fn composite_wet_erase(
-    out_tile:  &mut [u8],
-    base_tile: &[u8],
-    wet_tile:  &[u8],
-) {
+pub fn composite_wet_erase(out_tile: &mut [u8], base_tile: &[u8], wet_tile: &[u8]) {
     let n = out_tile.len().min(base_tile.len()).min(wet_tile.len());
     let pixels = n / 4;
     for i in 0..pixels {
         let b = i * 4;
         let erase = wet_tile[b + 3] as f32 / 255.0;
         let base_a = base_tile[b + 3] as f32 / 255.0;
-        let new_a  = (base_a * (1.0 - erase)).max(0.0);
-        out_tile[b]     = base_tile[b];
+        let new_a = (base_a * (1.0 - erase)).max(0.0);
+        out_tile[b] = base_tile[b];
         out_tile[b + 1] = base_tile[b + 1];
         out_tile[b + 2] = base_tile[b + 2];
         out_tile[b + 3] = (new_a * 255.0).round() as u8;

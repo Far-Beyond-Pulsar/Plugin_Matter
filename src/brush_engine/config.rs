@@ -17,7 +17,9 @@ pub enum BrushShape {
 }
 
 impl Default for BrushShape {
-    fn default() -> Self { Self::Circle }
+    fn default() -> Self {
+        Self::Circle
+    }
 }
 
 /// All parameters stored in a brush bundle's `config.json`.
@@ -56,7 +58,15 @@ pub struct BrushConfig {
     pub default_opacity: f32,
 }
 
-fn default_spacing()  -> f32 { 0.20 }
-fn default_hardness() -> f32 { 0.50 }
-fn default_size()     -> f32 { 20.0 }
-fn default_opacity()  -> f32 { 1.0  }
+fn default_spacing() -> f32 {
+    0.20
+}
+fn default_hardness() -> f32 {
+    0.50
+}
+fn default_size() -> f32 {
+    20.0
+}
+fn default_opacity() -> f32 {
+    1.0
+}

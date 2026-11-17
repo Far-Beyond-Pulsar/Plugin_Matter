@@ -10,8 +10,6 @@ Matter.Background: Background
 Matter.Brush: BRUSH
 Matter.SelectBrush: Select brush…
 Matter.Size: Size
-Matter.Colors: Colors
-Matter.NewLayer: + New Layer
 Matter.Undo: Undo (Cmd+Z)
 Matter.Redo: Redo (Cmd+Shift+Z)
 Matter.Menu.Edit: Edit

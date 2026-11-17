@@ -1,12 +1,15 @@
 //! Toolbar rendering
 
-use rust_i18n::t;
 use gpui::*;
 use parking_lot::RwLock;
+use rust_i18n::t;
 use std::sync::Arc;
-use ui::{button::{Button, ButtonVariants}, IconName, Theme};
+use ui::{
+    button::{Button, ButtonVariants},
+    IconName, Theme,
+};
 
-use crate::state::{Document, ActiveTool};
+use crate::state::{ActiveTool, Document};
 
 /// `canvas` is notified after undo/redo so it redraws (which also rebuilds
 /// the panel around it).
@@ -17,8 +20,8 @@ pub fn render_toolbar(
     focus: FocusHandle,
     theme: &Theme,
 ) -> impl IntoElement {
-    let can_undo    = !doc.history.is_empty_undo();
-    let can_redo    = !doc.history.is_empty_redo();
+    let can_undo = !doc.history.is_empty_undo();
+    let can_redo = !doc.history.is_empty_redo();
     let active_tool = doc.tool_state.active_tool;
 
     div()
@@ -34,18 +37,23 @@ pub fn render_toolbar(
         // ── Edit menu (Pulsar-Native#1012): Undo/Redo, named for the step ──
         .child(
             plugin_editor_api::EditorMenuStrip::new("matter-editor-menus")
-                .menu(plugin_editor_api::EditorMenu::new(t!("Matter.Menu.Edit").to_string()).undo_redo(
-                    t!("Matter.Menu.Undo").to_string(),
-                    t!("Matter.Menu.Redo").to_string(),
-                    Some(doc.history.shared().clone() as _),
-                ))
+                .menu(
+                    plugin_editor_api::EditorMenu::new(t!("Matter.Menu.Edit").to_string())
+                        .undo_redo(
+                            t!("Matter.Menu.Undo").to_string(),
+                            t!("Matter.Menu.Redo").to_string(),
+                            Some(doc.history.shared().clone() as _),
+                        ),
+                )
                 .action_context(focus),
         )
         .child(separator(theme))
         // ── History ────────────────────────────────────────────────────────
         .child({
             let doc_undo = document.clone();
-            let mut btn = Button::new("undo").icon(IconName::Undo).tooltip(t!("Matter.Undo").to_string());
+            let mut btn = Button::new("undo")
+                .icon(IconName::Undo)
+                .tooltip(t!("Matter.Undo").to_string());
             if can_undo {
                 btn = btn.on_click(move |_, _, cx| {
                     let _ = doc_undo.write().history.undo();
@@ -56,7 +64,9 @@ pub fn render_toolbar(
         })
         .child({
             let doc_redo = document.clone();
-            let mut btn = Button::new("redo").icon(IconName::Redo).tooltip(t!("Matter.Redo").to_string());
+            let mut btn = Button::new("redo")
+                .icon(IconName::Redo)
+                .tooltip(t!("Matter.Redo").to_string());
             if can_redo {
                 btn = btn.on_click(move |_, _, cx| {
                     let _ = doc_redo.write().history.redo();
@@ -67,11 +77,41 @@ pub fn render_toolbar(
         })
         .child(separator(theme))
         // ── Tools ──────────────────────────────────────────────────────────
-        .child(tool_button(document.clone(), IconName::EditPencil, "Paint (B)",       ActiveTool::Paint,      active_tool))
-        .child(tool_button(document.clone(), IconName::Erase,      "Eraser (E)",      ActiveTool::Erase,      active_tool))
-        .child(tool_button(document.clone(), IconName::Droplet,    "Fill (G)",        ActiveTool::Fill,       active_tool))
-        .child(tool_button(document.clone(), IconName::Eye,        "Eyedropper (I)",  ActiveTool::Eyedropper, active_tool))
-        .child(tool_button(document.clone(), IconName::DragHandGesture, "Pan (H)",    ActiveTool::Pan,        active_tool))
+        .child(tool_button(
+            document.clone(),
+            IconName::EditPencil,
+            "Paint (B)",
+            ActiveTool::Paint,
+            active_tool,
+        ))
+        .child(tool_button(
+            document.clone(),
+            IconName::Erase,
+            "Eraser (E)",
+            ActiveTool::Erase,
+            active_tool,
+        ))
+        .child(tool_button(
+            document.clone(),
+            IconName::Droplet,
+            "Fill (G)",
+            ActiveTool::Fill,
+            active_tool,
+        ))
+        .child(tool_button(
+            document.clone(),
+            IconName::Eye,
+            "Eyedropper (I)",
+            ActiveTool::Eyedropper,
+            active_tool,
+        ))
+        .child(tool_button(
+            document.clone(),
+            IconName::DragHandGesture,
+            "Pan (H)",
+            ActiveTool::Pan,
+            active_tool,
+        ))
         .child(separator(theme))
         // ── Zoom label ─────────────────────────────────────────────────────
         .child(
@@ -79,15 +119,15 @@ pub fn render_toolbar(
                 .text_xs()
                 .text_color(theme.foreground.opacity(0.6))
                 .px_2()
-                .child(t!("Matter.Zoom100").to_string())   // TODO: bind to viewport zoom
+                .child(t!("Matter.Zoom100").to_string()), // TODO: bind to viewport zoom
         )
 }
 
 fn tool_button(
-    document:    Arc<RwLock<Document>>,
-    icon:        IconName,
+    document: Arc<RwLock<Document>>,
+    icon: IconName,
     tooltip_text: &str,
-    tool:        ActiveTool,
+    tool: ActiveTool,
     active_tool: ActiveTool,
 ) -> Button {
     let id = format!("tool_{:?}", icon);

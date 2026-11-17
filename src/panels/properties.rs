@@ -1,7 +1,7 @@
 //! Properties panel — brush picker, colour pickers, and brush settings.
 
-use rust_i18n::t;
 use gpui::*;
+use rust_i18n::t;
 use ui::{
     color_picker::ColorPicker,
     dropdown::{Dropdown, DropdownState},
@@ -13,14 +13,14 @@ use crate::brush_engine::BrushDropdownItem;
 use crate::state::Document;
 
 pub fn render_properties_panel(
-    doc:            &Document,
-    fg_picker:      &Entity<ui::color_picker::ColorPickerState>,
-    bg_picker:      &Entity<ui::color_picker::ColorPickerState>,
+    doc: &Document,
+    fg_picker: &Entity<ui::color_picker::ColorPickerState>,
+    bg_picker: &Entity<ui::color_picker::ColorPickerState>,
     brush_dropdown: &Entity<DropdownState<Vec<BrushDropdownItem>>>,
-    brush_size:     &Entity<SliderState>,
-    theme:          &Theme,
+    brush_size: &Entity<SliderState>,
+    theme: &Theme,
 ) -> impl IntoElement {
-    let size_val  = doc.tool_state.brush_size;
+    let size_val = doc.tool_state.brush_size;
     let brush_opacity = doc.tool_state.brush_opacity;
 
     div()
@@ -46,8 +46,8 @@ pub fn render_properties_panel(
                         .text_sm()
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme.foreground)
-                        .child(t!("Matter.Properties").to_string())
-                )
+                        .child(t!("Matter.Properties").to_string()),
+                ),
         )
         // ── Colour section ─────────────────────────────────────────────────
         .child(
@@ -62,7 +62,7 @@ pub fn render_properties_panel(
                         .text_xs()
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme.foreground.opacity(0.7))
-                        .child(t!("Matter.Color").to_string())
+                        .child(t!("Matter.Color").to_string()),
                 )
                 .child(
                     div()
@@ -79,12 +79,12 @@ pub fn render_properties_panel(
                                     div()
                                         .text_xs()
                                         .text_color(theme.foreground.opacity(0.6))
-                                        .child(t!("Matter.Foreground").to_string())
+                                        .child(t!("Matter.Foreground").to_string()),
                                 )
                                 .child(
                                     ColorPicker::new(fg_picker)
-                                        .label(t!("Matter.Foreground").to_string())
-                                )
+                                        .label(t!("Matter.Foreground").to_string()),
+                                ),
                         )
                         // Background picker
                         .child(
@@ -96,14 +96,14 @@ pub fn render_properties_panel(
                                     div()
                                         .text_xs()
                                         .text_color(theme.foreground.opacity(0.6))
-                                        .child(t!("Matter.Background").to_string())
+                                        .child(t!("Matter.Background").to_string()),
                                 )
                                 .child(
                                     ColorPicker::new(bg_picker)
-                                        .label(t!("Matter.Background").to_string())
-                                )
-                        )
-                )
+                                        .label(t!("Matter.Background").to_string()),
+                                ),
+                        ),
+                ),
         )
         // ── Brush picker ───────────────────────────────────────────────────
         .child(
@@ -120,14 +120,14 @@ pub fn render_properties_panel(
                         .text_xs()
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme.foreground.opacity(0.7))
-                        .child(t!("Matter.Brush").to_string())
+                        .child(t!("Matter.Brush").to_string()),
                 )
                 // Dropdown — lists all loaded brushes with shape thumbnails.
                 .child(
                     Dropdown::new(brush_dropdown)
                         .placeholder(t!("Matter.SelectBrush").to_string())
-                        .menu_width(px(220.0))
-                )
+                        .menu_width(px(220.0)),
+                ),
         )
         // ── Brush size slider ──────────────────────────────────────────────
         .child(
@@ -147,19 +147,21 @@ pub fn render_properties_panel(
                             div()
                                 .text_xs()
                                 .text_color(theme.foreground.opacity(0.6))
-                                .child(t!("Matter.Size").to_string())
+                                .child(t!("Matter.Size").to_string()),
                         )
                         .child(
                             div()
                                 .text_xs()
                                 .text_color(theme.foreground.opacity(0.5))
-                                .child(format!("{:.0}px", size_val))
-                        )
+                                .child(format!("{:.0}px", size_val)),
+                        ),
                 )
                 .child(Slider::new(brush_size).horizontal())
                 .child(
-                    div().text_xs().text_color(theme.foreground.opacity(0.6))
-                         .child(format!("Opacity: {:.0}%", brush_opacity * 100.0))
-                )
+                    div()
+                        .text_xs()
+                        .text_color(theme.foreground.opacity(0.6))
+                        .child(format!("Opacity: {:.0}%", brush_opacity * 100.0)),
+                ),
         )
 }

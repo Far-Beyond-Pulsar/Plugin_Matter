@@ -1,7 +1,6 @@
 //! Canvas rendering and interaction
 
-mod viewport;
-pub mod stroke;
 pub mod renderer;
+mod viewport;
 
 pub use viewport::CanvasViewport;

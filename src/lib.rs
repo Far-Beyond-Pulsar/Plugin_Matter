@@ -10,7 +10,6 @@ mod panel;
 mod panels;
 mod plugin;
 pub mod state;
-mod tools;
 mod ui;
 
 pub use panel::MatterEditorPanel;
