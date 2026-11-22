@@ -48,6 +48,9 @@ rust-i18n-support = "=4.2.1"
 rustc_version = "0.4"
 
 [features]
+# The plugin as a library of its own, loaded by the editor from plugins/editor:
+# cargo build -p <this package> --release --features dll
+dll = ["plugin_editor_api/editor", "plugin_editor_api/shared-dylibs"]
 plugin = []
 
 [lints]
