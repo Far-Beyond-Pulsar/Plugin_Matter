@@ -20,6 +20,12 @@ pulsar_plugins::installed!("pulsar-plugin.toml", build);
 
 /// Everything the plugin registers (the editor provider).
 pub fn build(p: &mut pulsar_plugins::PluginBuilder) {
+    // The icon the editor shows beside this plugin (Extensions window).
+    p.add(pulsar_plugins::PluginIcon {
+        origin: p.origin(),
+        format: pulsar_plugins::IconFormat::Png,
+        bytes: include_bytes!("../icon.png"),
+    });
     builtin_provider::build(p);
     examples::build(p);
 }
